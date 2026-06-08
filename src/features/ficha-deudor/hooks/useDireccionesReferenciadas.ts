@@ -1,85 +1,203 @@
-import { useState, useEffect, useCallback } from 'react';
-import { 
-  fetchDireccionesReferenciadas, 
-  createDireccion, 
-  updateDireccion 
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+  fetchDireccionesReferenciadas,
+  createDireccion,
+  updateDireccion,
 } from '../api/direccionesReferenciadasApi';
 import type { DireccionReferenciada, DireccionFormData, DireccionEditFormData } from '../../../shared/types';
 
-interface UseDireccionesReturn {
-  data: DireccionReferenciada[];
+export interface TextFilters {
+  [columnKey: string]: string;
+}
+
+export interface SelectedFilters {
+  [columnKey: string]: string[];
+}
+
+interface UseDireccionesReferenciadasReturn {
+  allData: DireccionReferenciada[];
+  filteredData: DireccionReferenciada[];
+  paginatedData: DireccionReferenciada[];
   isLoading: boolean;
   error: string | null;
-  setData: React.Dispatch<React.SetStateAction<DireccionReferenciada[]>>;
+  pageNumber: number;
+  pageSize: number;
+  totalRecords: number;
+  totalPages: number;
+  setPageNumber: (page: number) => void;
+  setPageSize: (size: number) => void;
+  refetch: () => void;
+  textFilters: TextFilters;
+  selectedFilters: SelectedFilters;
+  onTextFilterChange: (columnKey: string, value: string) => void;
+  onSelectedFilterChange: (columnKey: string, values: string[]) => void;
   create: (formData: DireccionFormData) => Promise<void>;
   update: (id: string, formData: DireccionEditFormData) => Promise<void>;
-  refetch: () => void;
 }
 
 export function useDireccionesReferenciadas(
-  id_deudor: string,
-  id_cartera: string
-): UseDireccionesReturn {
-  const [data, setData] = useState<DireccionReferenciada[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  id_cliente: string,
+  id_deudor: string
+): UseDireccionesReferenciadasReturn {
+  const [allData, setAllData] = useState<DireccionReferenciada[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = useCallback(async (signal: AbortSignal) => {
-    if (!id_deudor || !id_cartera) {
-      setIsLoading(false);
-      return;
-    }
+  const [pageNumber, setPageNumber] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
+  const [textFilters, setTextFilters] = useState<TextFilters>({});
+  const [selectedFilters, setSelectedFilters] = useState<SelectedFilters>({});
+
+  // ─── Efecto: Cargar todos los registros ───
+  useEffect(() => {
+    if (!id_cliente || !id_deudor) return;
+
+    const controller = new AbortController();
+
+    const loadData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const result = await fetchDireccionesReferenciadas(id_cliente, id_deudor);
+        if (controller.signal.aborted) return;
+        setAllData(result);
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : 'Error cargando direcciones');
+          setAllData([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) setIsLoading(false);
+      }
+    };
+
+    loadData();
+    return () => controller.abort();
+  }, [id_cliente, id_deudor]);
+
+  // ─── Resetear página y filtros cuando cambian IDs ───
+  useEffect(() => {
+    setPageNumber(1);
+    setTextFilters({});
+    setSelectedFilters({});
+  }, [id_cliente, id_deudor]);
+
+  // Resetear página cuando cambia pageSize
+  useEffect(() => {
+    setPageNumber(1);
+  }, [pageSize]);
+
+  // ─── Filtros client-side ───
+  const filteredData = useMemo(() => {
+    return allData.filter((row) => {
+      for (const [columnKey, filterText] of Object.entries(textFilters)) {
+        if (!filterText) continue;
+        const cellValue = String(row[columnKey as keyof DireccionReferenciada] ?? '').toLowerCase();
+        if (!cellValue.includes(filterText.toLowerCase())) return false;
+      }
+
+      for (const [columnKey, selectedValues] of Object.entries(selectedFilters)) {
+        if (!selectedValues || selectedValues.length === 0) continue;
+        const cellValue = String(row[columnKey as keyof DireccionReferenciada] ?? '');
+        if (!selectedValues.includes(cellValue)) return false;
+      }
+
+      return true;
+    });
+  }, [allData, textFilters, selectedFilters]);
+
+  // ─── Paginación client-side ───
+  const totalRecords = filteredData.length;
+  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
+  const indiceInicio = (pageNumber - 1) * pageSize;
+  const indiceFin = Math.min(indiceInicio + pageSize, totalRecords);
+  const paginatedData = filteredData.slice(indiceInicio, indiceFin);
+
+  // ─── Refetch ───
+  const refetch = useCallback(() => {
+    if (!id_cliente || !id_deudor) return;
+    const controller = new AbortController();
     setIsLoading(true);
     setError(null);
 
-    try {
-      const result = await fetchDireccionesReferenciadas(id_deudor, id_cartera);
-      if (signal.aborted) return;
-      setData(result);
-    } catch (err) {
-      if (signal.aborted) return;
-      setError(err instanceof Error ? err.message : 'Error desconocido');
-    } finally {
-      if (!signal.aborted) setIsLoading(false);
-    }
-  }, [id_deudor, id_cartera]);
+    fetchDireccionesReferenciadas(id_cliente, id_deudor)
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        setAllData(result);
+      })
+      .catch((err) => {
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : 'Error cargando direcciones');
+          setAllData([]);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false);
+      });
 
-  useEffect(() => {
-    const controller = new AbortController();
-    loadData(controller.signal);
     return () => controller.abort();
-  }, [loadData]);
+  }, [id_cliente, id_deudor]);
 
-  const refetch = useCallback(() => {
-    const controller = new AbortController();
-    loadData(controller.signal);
-    return () => controller.abort();
-  }, [loadData]);
+  // ─── Handlers de filtros ───
+  const onTextFilterChange = useCallback((columnKey: string, value: string) => {
+    setTextFilters((prev) => ({ ...prev, [columnKey]: value }));
+    setPageNumber(1);
+  }, []);
 
-  // ─── CREATE (ya lo tienes) ───
-  const create = useCallback(async (formData: DireccionFormData) => {
-    try {
-      await createDireccion(id_deudor, id_cartera, formData);
-      await loadData(new AbortController().signal);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error al crear dirección';
-      setError(msg);
-      throw err;
-    }
-  }, [id_deudor, id_cartera, loadData]);
+  const onSelectedFilterChange = useCallback((columnKey: string, values: string[]) => {
+    setSelectedFilters((prev) => ({ ...prev, [columnKey]: values }));
+    setPageNumber(1);
+  }, []);
+
+  // ─── CREATE ───
+  const create = useCallback(
+    async (formData: DireccionFormData) => {
+      try {
+        await createDireccion(id_cliente, id_deudor, formData);
+        await refetch();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Error al crear dirección';
+        setError(msg);
+        throw err;
+      }
+    },
+    [id_cliente, id_deudor, refetch]
+  );
 
   // ─── UPDATE ───
-  const update = useCallback(async (id: string, formData: DireccionEditFormData) => {
-    try {
-      await updateDireccion(id_deudor, id_cartera, id, formData);
-      await loadData(new AbortController().signal);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error al actualizar dirección';
-      setError(msg);
-      throw err;
-    }
-  }, [id_deudor, id_cartera, loadData]);
+  const update = useCallback(
+    async (id: string, formData: DireccionEditFormData) => {
+      try {
+        await updateDireccion(id_cliente, id_deudor, id, formData);
+        await refetch();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Error al actualizar dirección';
+        setError(msg);
+        throw err;
+      }
+    },
+    [id_cliente, id_deudor, refetch]
+  );
 
-  return { data, isLoading, error, setData, create, update, refetch };
+  return {
+    allData,
+    filteredData,
+    paginatedData,
+    isLoading,
+    error,
+    pageNumber,
+    pageSize,
+    totalRecords,
+    totalPages,
+    setPageNumber,
+    setPageSize,
+    refetch,
+    textFilters,
+    selectedFilters,
+    onTextFilterChange,
+    onSelectedFilterChange,
+    create,
+    update,
+  };
 }

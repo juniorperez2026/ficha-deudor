@@ -1,17 +1,32 @@
-export interface TelefonoReferenciado {
-  id: string;
+export interface TelefonoReferenciadoApi {
   prioridad: number;
-  numero: string;
+  nroTelefono: string;
   horario: string;
-  refUbicacion: string;
+  referenciaUbicacion: string;
   estado: string;
   fechaEstado: string;
   fechaBase: string;
   contactados: string;
   noContactados: number;
-  ivr: string;
-  fuente: string,
-  ordenSearch: number;
+  cantidadIvr: number;
+  fuente: string;
+  ordenSearch: string;
+}
+
+export interface TelefonoReferenciado {
+  id: string;               // ← Se genera en el mapeo desde nroTelefono
+  prioridad: number;
+  numero: string;           // ← Mapeado desde nroTelefono
+  horario: string;
+  refUbicacion: string;     // ← Mapeado desde referenciaUbicacion
+  estado: string;
+  fechaEstado: string;
+  fechaBase: string;
+  contactados: string;
+  noContactados: number;
+  ivr: string;              // ← Mapeado desde cantidadIvr (number → string)
+  fuente: string;
+  ordenSearch: number;      // ← Mapeado desde ordenSearch (string → number)
   anexo: string;
   operadorTelefonico: string;
   referencia: string;
@@ -31,3 +46,4 @@ export interface TelefonoFormData {
   referencia: string;
   reclamoIndecopi: string;
 }
+

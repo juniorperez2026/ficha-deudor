@@ -10,7 +10,7 @@ export interface ApiResponse<T> {
   pageSize: number;
   totalRecords: number;
   totalPages: number;
-  response: T[];
+  response: T;
 }
 
 // ─── Respuesta simple (cabeceras) ───
@@ -23,3 +23,5 @@ export interface ApiResponseSimple<T> {
 }
 
 export * from '../../features/ficha-deudor/types/api.types';
+export * from '../../features/ficha-deudor/types/telefono.types';
+export * from '../../features/ficha-deudor/types/direccion.types';

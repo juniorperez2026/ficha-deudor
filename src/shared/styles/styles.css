@@ -869,3 +869,69 @@ body {
   font-size: 11px;
   resize: vertical;
 }
+
+/* ============================================
+   TÍTULOS VERTICALES CON writing-mode
+   Funciona en todos los navegadores modernos
+   ============================================ */
+.ficha-block--with-side-title {
+  display: flex;
+  gap: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--ap-gray-200);
+}
+.ficha-block--with-side-title:last-child {
+  border-bottom: none;
+}
+
+/* Columna izquierda del título */
+.block-side-title-wrapper {
+  flex: 0 0 36px;
+  background: var(--ap-red);
+  border-right: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+}
+
+/* Texto vertical: de abajo hacia arriba */
+.block-side-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  /* Esto es lo que hace el texto vertical */
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  text-orientation: mixed;
+  white-space: nowrap;
+}
+
+/* Contenido a la derecha */
+.block-content {
+  flex: 1;
+  padding: 12px 16px;
+}
+
+/* En móvil se vuelve horizontal */
+@media (max-width: 768px) {
+  .ficha-block--with-side-title {
+    flex-direction: column;
+  }
+  .block-side-title-wrapper {
+    flex: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--ap-gray-200);
+    min-height: auto;
+    padding: 8px;
+    background: var(--ap-red);
+  }
+  .block-side-title {
+    writing-mode: horizontal-tb;
+    transform: none;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.92);
+  }
+}

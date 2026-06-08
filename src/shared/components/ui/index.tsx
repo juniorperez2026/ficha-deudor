@@ -7,6 +7,7 @@ export * from './FieldRow';
 export * from './FormGrid';
 export * from './InputField';
 export * from './Paginacion';
+export * from './PasswordField';
 export * from './SectionHeader';
 export * from './SelectField';
 export * from './StatusBadge';

@@ -44,9 +44,8 @@ export async function apiClient<T>(
   // =====================
   // MODO MOCK
   // =====================
-  if (env.useMocks && mock) {
+  if (mock) {
     await new Promise((resolve) => setTimeout(resolve, 300));
-
     return await mock();
   }
 

@@ -1,34 +1,70 @@
-// src/services/modules/telefonosReferenciadosApi.ts
 import { apiClient } from '../../../shared/api/apiClient';
 import { mockTelefonosReferenciados } from '../mocks/mocks/telefonosReferenciados';
-import type { TelefonoReferenciado, TelefonoFormData } from '../../../shared/types';
+import type { TelefonoReferenciado, TelefonoFormData, ApiResponse, TelefonoReferenciadoApi } from '../../../shared/types/indexApi';
 
+const BASE_GESTION = '/v1/Gestion';
+
+// ─── GET: Todos los registros (carga masiva para filtros client-side) ───
 export async function fetchTelefonosReferenciados(
+  id_cliente: string,
   id_deudor: string,
-  id_cartera: string
 ): Promise<TelefonoReferenciado[]> {
-  return apiClient<TelefonoReferenciado[]>(
-    `/telefonos-referenciados?id_deudor=${id_deudor}&id_cartera=${id_cartera}`,
-    {
-      mock: () => mockTelefonosReferenciados[id_deudor] ?? [],
-    }
+  const params = new URLSearchParams({
+    nId_Cliente: id_cliente,
+    nId_Persdeudor: id_deudor,
+    PageNumber: '1',
+    PageSize: '1000'
+  });
+
+  const result = await apiClient<ApiResponse<TelefonoReferenciadoApi[]>>(
+    `${BASE_GESTION}/GetGestionTelefonos?${params.toString()}`,
   );
+
+  if (result.statusCode !== 200) {
+    throw new Error(result.message || 'Error cargando teléfonos');
+  }
+
+  return result.response.map((item) => ({
+    id: item.nroTelefono,
+    prioridad: item.prioridad,
+    numero: item.nroTelefono,                   // nroTelefono → numero
+    horario: item.horario,
+    refUbicacion: item.referenciaUbicacion,     // referenciaUbicacion → refUbicacion
+    estado: item.estado,
+    fechaEstado: item.fechaEstado,
+    fechaBase: item.fechaBase,
+    contactados: item.contactados,
+    noContactados: item.noContactados,
+    ivr: String(item.cantidadIvr),              // cantidadIvr (number) → ivr (string)
+    fuente: item.fuente,
+    ordenSearch: parseInt(item.ordenSearch, 10) || 0, // ordenSearch (string) → number
+    // Campos que no vienen en el GET pero existen en el type del frontend
+    anexo: '',
+    operadorTelefonico: '',
+    referencia: '',
+    reclamoIndecopi: '',
+  }));
 }
 
 // ─── POST: Crear nuevo teléfono ───
 export async function createTelefono(
+  id_cliente: string,
   id_deudor: string,
-  id_cartera: string,
   data: TelefonoFormData
 ): Promise<TelefonoReferenciado> {
   return apiClient<TelefonoReferenciado>(
-    `/telefonos-referenciados`,
+    `${BASE_GESTION}/CreateTelefono`,
     {
-      body: { id_deudor, id_cartera, ...data },
+      method: 'POST',
+      body: {
+        nId_Cliente: id_cliente,
+        nId_Persdeudor: id_deudor,
+        ...data,
+      },
       mock: () => {
         const nuevo: TelefonoReferenciado = {
           id: `TEL-${Date.now()}`,
-          prioridad: parseInt(data.prioridad) || 0,
+          prioridad: parseInt(data.prioridad, 10) || 0,
           numero: data.numero,
           horario: data.horarioGestion,
           refUbicacion: data.ubicacion,
@@ -45,12 +81,12 @@ export async function createTelefono(
           referencia: data.referencia,
           reclamoIndecopi: data.reclamoIndecopi,
         };
-        
+
         if (!mockTelefonosReferenciados[id_deudor]) {
           mockTelefonosReferenciados[id_deudor] = [];
         }
         mockTelefonosReferenciados[id_deudor].push(nuevo);
-        
+
         return nuevo;
       },
     }
@@ -59,23 +95,29 @@ export async function createTelefono(
 
 // ─── PUT: Actualizar teléfono existente ───
 export async function updateTelefono(
+  id_cliente: string,
   id_deudor: string,
-  id_cartera: string,
   id_telefono: string,
   data: TelefonoFormData
 ): Promise<TelefonoReferenciado> {
   return apiClient<TelefonoReferenciado>(
-    `/telefonos-referenciados/${id_telefono}`,
+    `${BASE_GESTION}/UpdateTelefono/${id_telefono}`,
     {
-      body: { id_deudor, id_cartera, ...data },
+      method: 'PUT',
+      body: {
+        nId_Cliente: id_cliente,
+        nId_Persdeudor: id_deudor,
+        idTelefono: id_telefono,
+        ...data,
+      },
       mock: () => {
         const lista = mockTelefonosReferenciados[id_deudor] || [];
-        const index = lista.findIndex(t => t.id === id_telefono);
-        
+        const index = lista.findIndex((t) => t.id === id_telefono);
+
         if (index === -1) {
           throw new Error(`Teléfono ${id_telefono} no encontrado`);
         }
-        
+
         const actualizado: TelefonoReferenciado = {
           ...lista[index],
           numero: data.numero,
@@ -83,15 +125,14 @@ export async function updateTelefono(
           estado: data.resultado,
           operadorTelefonico: data.operadorTelefonico,
           refUbicacion: data.ubicacion,
-          prioridad: parseInt(data.prioridad) || 0,
+          prioridad: parseInt(data.prioridad, 10) || 0,
           horario: data.horarioGestion,
           fuente: data.fuenteBusqueda,
           referencia: data.referencia,
           reclamoIndecopi: data.reclamoIndecopi,
         };
-        
+
         lista[index] = actualizado;
-        
         return actualizado;
       },
     }

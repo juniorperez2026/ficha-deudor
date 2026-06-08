@@ -1,3 +1,12 @@
+export interface DireccionReferenciadaApi {
+  nId_PersDirecc: number;
+  direccion: string;
+  referenciaUbicacion: string;
+  tipoDeudor: string;
+  nombre: string;
+  estado: string;
+}
+
 export interface DireccionReferenciada {
   id: string;
   direccion: string;
@@ -5,12 +14,12 @@ export interface DireccionReferenciada {
   tipoDeudor: string;
   nombre: string;
   estado: string;
-  departamento?: string;     // ← NUEVO
-  provincia?: string;        // ← NUEVO
-  distrito?: string;         // ← NUEVO
-  comentario?: string;       // ← NUEVO
-  llegoDeBase?: string;      // ← NUEVO
-  nombreAval?: string;       // ← NUEVO
+  departamento?: string; 
+  provincia?: string;
+  distrito?: string;
+  comentario?: string;
+  llegoDeBase?: string;
+  nombreAval?: string
 }
 
 export interface DireccionFormData {
@@ -33,6 +42,6 @@ export interface DireccionEditFormData {
   comentario: string;
   llegoDeBase: string;
   tipoDeudor: string;
-  nombreAval: string;      // ← NUEVO
-  estado: string;          // ← NUEVO
+  nombreAval: string;
+  estado: string;
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ParamGuard } from '../components/ParamGuard';
+import { useSearchParams } from 'react-router-dom';
 import DeudorHeader from '../components/ficha/DeudorHeader';
 import AccionesRapidas from '../components/ficha/AccionesRapidas';
 import DocumentosTable from '../components/ficha/DocumentosTable';
@@ -21,11 +21,17 @@ interface FichaContentProps {
   id_usuario: string;
 }
 
-const FichaContent: React.FC<FichaContentProps> = ({ id_cliente, id_cartera, id_deudor, id_contrato, id_usuario }) => {
+const FichaContent: React.FC<FichaContentProps> = ({ 
+  id_cliente, 
+  id_cartera, 
+  id_deudor, 
+  id_contrato, 
+  id_usuario 
+}) => {
   const [contacto, setContacto] = useState('');
   const [panelActivo, setPanelActivo] = useState<string | null>(null);
   
-  const { data: deudorData } = useDeudorHeader(id_cliente, id_cartera); // ← NUEVO
+  const { data: deudorData } = useDeudorHeader(id_cliente, id_cartera);
 
   const handleGestionSubmit = (data: GestionForm) => {
     const payload = { ...data, id_cliente, id_cartera, id_deudor, id_contrato, id_usuario };
@@ -38,7 +44,7 @@ const FichaContent: React.FC<FichaContentProps> = ({ id_cliente, id_cartera, id_
   };
 
   return (
-    <DeudorProvider value={deudorData ?? null}> {/* ← NUEVO: Envuelve todo */}
+    <DeudorProvider value={deudorData ?? null}>
       <div>
         <header className="app-header">
           <div className="app-logo">
@@ -60,8 +66,8 @@ const FichaContent: React.FC<FichaContentProps> = ({ id_cliente, id_cartera, id_
           <aside className="ficha-sidebar">
             {deudorData && (
               <DeudorHeader 
-                id_cliente={id_cliente}   // ← CORRECTO
-                id_cartera={id_cartera}   // ← CORRECTO
+                id_cliente={id_cliente}
+                id_cartera={id_cartera}
                 contacto={contacto}
                 onContactoChange={setContacto}
                 compact={true}
@@ -76,8 +82,8 @@ const FichaContent: React.FC<FichaContentProps> = ({ id_cliente, id_cartera, id_
           <div className="ficha-content">
             <DocumentosTable id_cliente={id_cliente} id_cartera={id_cartera} id_deudor={id_deudor} id_contrato={id_contrato}/>
             <PanelDatosAdicionales isActive={panelActivo === 'DATOS ADICIONALES'} id_cliente={id_cliente} id_cartera={id_cartera} id_deudor={id_deudor}/>
-            <PanelTelefonosReferenciados isActive={panelActivo === 'TELÉFONOS REFERENCIADOS'} id_deudor={id_deudor} id_cartera={id_cartera} />
-            <PanelDireccionesReferenciadas isActive={panelActivo === 'DIRECCIONES REFERENCIADAS'} id_deudor={id_deudor} id_cartera={id_cartera} />
+            <PanelTelefonosReferenciados isActive={panelActivo === 'TELÉFONOS REFERENCIADOS'} id_cliente={id_cliente} id_deudor={id_deudor} />
+            <PanelDireccionesReferenciadas isActive={panelActivo === 'DIRECCIONES REFERENCIADAS'} id_cliente={id_cliente} id_deudor={id_deudor} />
             <PanelGestionRealizada isActive={panelActivo === 'GESTIÓN REALIZADA'} id_deudor={id_deudor} id_cartera={id_cartera} />
             <PanelEstadoGestionRealizada isActive={panelActivo === 'ESTADO DE GESTIÓN REALIZADA'} id_deudor={id_deudor} id_cartera={id_cartera} />
             <FichaGestion onSubmit={handleGestionSubmit} />
@@ -89,10 +95,34 @@ const FichaContent: React.FC<FichaContentProps> = ({ id_cliente, id_cartera, id_
 };
 
 const FichaDeudor: React.FC = () => {
+  // ← NUEVO: Usar useSearchParams en lugar de ParamGuard
+  const [searchParams] = useSearchParams();
+  
+  const id_cliente = searchParams.get('id_cliente');
+  const id_cartera = searchParams.get('id_cartera');
+  const id_deudor = searchParams.get('id_deudor');
+  const id_contrato = searchParams.get('id_contrato');
+  const id_usuario = searchParams.get('id_usuario');
+
+  // Validar que todos los parámetros existan
+  if (!id_cliente || !id_cartera || !id_deudor || !id_contrato || !id_usuario) {
+    return (
+      <div style={{ padding: '2rem', fontFamily: 'sans-serif', color: '#c00' }}>
+        <h2>Error: Parámetros faltantes</h2>
+        <p>La URL debe incluir: id_cliente, id_cartera, id_deudor, id_contrato, id_usuario</p>
+        <p>Ejemplo: ?id_cliente=178&id_cartera=45&id_deudor=999&id_contrato=30&id_usuario=carlos.r</p>
+      </div>
+    );
+  }
+
   return (
-    <ParamGuard>
-      {(params) => <FichaContent {...params} />}
-    </ParamGuard>
+    <FichaContent 
+      id_cliente={id_cliente}
+      id_cartera={id_cartera}
+      id_deudor={id_deudor}
+      id_contrato={id_contrato}
+      id_usuario={id_usuario}
+    />
   );
 };
 

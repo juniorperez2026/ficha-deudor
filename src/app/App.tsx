@@ -1,11 +1,68 @@
 import React from 'react';
-import FichaDeudor from '../features/ficha-deudor/pages/FichaDeudor';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from '../features/auth/hooks';
+import { LoginPage } from '../features/auth/pages';
+
+// Lazy loading
+const DashboardPage = React.lazy(() => import('../features/dashboard/pages/DashboardPage'));
+const FichaDeudor = React.lazy(() => import('../features/ficha-deudor/pages/FichaDeudor'));
 
 const App: React.FC = () => {
+  const { usuario, clienteSeleccionada } = useAuth();
+  const isFullyAuthenticated = !!usuario && !!clienteSeleccionada;
+
   return (
-    <div className="App">
-      <FichaDeudor />
-    </div>
+    <BrowserRouter>
+      <Routes>
+        {/* Ruta raíz: dashboard con query params */}
+        <Route
+          path="/"
+          element={
+            isFullyAuthenticated ? (
+              <React.Suspense fallback={<div>Cargando...</div>}>
+                <DashboardPage />
+              </React.Suspense>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        {/* Login */}
+        <Route
+          path="/login"
+          element={
+            isFullyAuthenticated ? (
+              <Navigate to={`/?id_cliente=${clienteSeleccionada?.id_cliente}&id_usuario=${usuario?.id_usuario}`} replace />
+            ) : (
+              <LoginPage />
+            )
+          }
+        />
+
+        {/* Ficha-deudor: acepta query params */}
+        <Route
+          path="/ficha-deudor"
+          element={
+            isFullyAuthenticated ? (
+              <React.Suspense fallback={<div>Cargando...</div>}>
+                <FichaDeudor />
+              </React.Suspense>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        {/* Redirección por defecto */}
+        <Route
+          path="*"
+          element={
+            <Navigate to={isFullyAuthenticated ? `/?id_cliente=${clienteSeleccionada?.id_cliente}&id_usuario=${usuario?.id_usuario}` : '/login'} replace />
+          }
+        />
+      </Routes>
+    </BrowserRouter>
   );
 };
 
