@@ -1,9 +1,12 @@
-import type { DeudorInfo } from '../../../../shared/types';
+import type { DeudorInfo, CabeceraInfo} from '../../../../shared/types';
 
-const deudorDefault: DeudorInfo = {
+const cabeceraDefault: CabeceraInfo = {
   zona: 'LIMA',
   cartera: 'CORP_TOP_INT_FEB-26',
-  campana: 'CAMP-001',
+  campana: 'CAMP-001'
+};
+
+const deudorDefault: DeudorInfo = {
   nombreRazonSocial: 'S.A.A. INVERSIONES CENTENARIO',
   dniRuc: '20101045995',
   gradoInstruccion: 'Superior',
@@ -15,6 +18,12 @@ const deudorDefault: DeudorInfo = {
   correoApv: 'apv@ejemplo.com',
   correoAc: 'ac@ejemplo.com',
   mejorResultado: 'Ayala',
+};
+
+export const mockCabeceraHeader: Record<string, CabeceraInfo> = {
+  '178': cabeceraDefault,
+  '201': { ...cabeceraDefault, zona: 'OTRA ZONA' },
+  default: cabeceraDefault,
 };
 
 export const mockDeudorHeader: Record<string, DeudorInfo> = {

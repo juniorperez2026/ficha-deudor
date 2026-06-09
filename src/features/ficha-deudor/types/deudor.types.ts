@@ -1,13 +1,13 @@
-export interface DeudorInfo {
+export interface CabeceraInfo {
   zona: string;
   cartera: string;
   campana: string;
+}
+
+export interface DeudorInfo {
   nombreRazonSocial: string;
   dniRuc: string;
-  gradoInstruccion: string;
-  edad: number;
   contacto: string;
-  asesorAsignado: string;
   asesorPostVenta: string;
   asesorComercial: string;
   correoApv: string;

@@ -1,56 +1,147 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import Table from '../../../../shared/components/table/Table';
 import { ActionButton } from '../../../../shared/components/ui';
 import Paginacion from '../../../../shared/components/ui/Paginacion';
 import { WrapCell } from '../../../../shared/components/ui/WrapCell';
 import { PanelLayout } from './PanelLayout';
-import { useDualViewTable } from '../../../../shared/hooks/ui/useDualViewTable';
 import { useEstadosGestion } from '../../hooks/useEstadosGestion';
 import type { Column, EstadoGestion, EstadoGestionCompleta } from '../../../../shared/types';
 
 interface Props {
   isActive: boolean;
-  id_deudor: string;
+  id_cliente: string;
   id_cartera: string;
+  id_deudor: string;
 }
 
-const PanelEstadoGestionRealizada: React.FC<Props> = ({ isActive, id_deudor, id_cartera }) => {
-  const { resumido: dataResumido, completo: dataExpandido, isLoading, error } = useEstadosGestion(id_deudor, id_cartera);
-
+const PanelEstadoGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_cartera, id_deudor }) => {
   const {
-    vistaExpandida,
-    handleVerMas,
-    handleVolver,
-    resumido,
-    expandido,
-  } = useDualViewTable<EstadoGestion, EstadoGestionCompleta>({
-    dataResumido,
-    dataExpandido,
-    resetDeps: [isActive, id_deudor, id_cartera],
-  });
+    allData,
+    filteredData,
+    paginatedData,
+    completo,
+    isLoading,
+    error,
+    pageNumber,
+    pageSize,
+    totalRecords,
+    totalPages,
+    setPageNumber,
+    setPageSize,
+    refetch,
+    textFilters,
+    selectedFilters,
+    onTextFilterChange,
+    onSelectedFilterChange,
+  } = useEstadosGestion(id_cliente, id_cartera, id_deudor);
 
-  const columnsResumidas: Column[] = useMemo(() => [
-    { key: 'nro', label: 'Nro', render: (row: EstadoGestion) => <span style={{ fontWeight: 700, color: '#1a2540' }}>{row.nro}</span> },
-    { key: 'fecha', label: 'Fecha' },
-    { key: 'operador', label: 'Operador', render: (row: EstadoGestion) => <WrapCell>{row.operador}</WrapCell> },
-    { key: 'documento', label: 'Documento' },
-    { key: 'operacion', label: 'Operación', render: (row: EstadoGestion) => <span className="badge badge-info" style={{ fontSize: '10px', textTransform: 'uppercase' }}>{row.operacion}</span> },
-    { key: 'resultado', label: 'Resultado', render: (row: EstadoGestion) => <WrapCell color={row.resultado.includes('Contactado') ? '#166534' : '#991b1b'} weight={500}>{row.resultado}</WrapCell> },
-    { key: 'comentario', label: 'Comentario', render: (row: EstadoGestion) => <WrapCell>{row.comentario}</WrapCell> },
-  ], []);
+  // Estado local para toggle entre vistas
+  const [vistaExpandida, setVistaExpandida] = useState(false);
 
-  const columnsExpandidas: Column[] = useMemo(() => [
-    { key: 'nro', label: 'Nro', render: (row: EstadoGestionCompleta) => <span style={{ fontWeight: 700, color: '#1a2540' }}>{row.nro}</span> },
-    { key: 'cliente', label: 'Cliente', render: (row: EstadoGestionCompleta) => <WrapCell>{row.cliente}</WrapCell> },
-    { key: 'cartera', label: 'Cartera', render: (row: EstadoGestionCompleta) => <WrapCell>{row.cartera}</WrapCell> },
-    { key: 'campana', label: 'Campaña' },
-    { key: 'fecha', label: 'Fecha' },
-    { key: 'gestor', label: 'Gestor', render: (row: EstadoGestionCompleta) => <WrapCell>{row.gestor}</WrapCell> },
-    { key: 'documento', label: 'Documento' },
-    { key: 'operacion', label: 'Operación', render: (row: EstadoGestionCompleta) => <span className="badge badge-info" style={{ fontSize: '10px', textTransform: 'uppercase' }}>{row.operacion}</span> },
-    { key: 'resultado', label: 'Resultado', render: (row: EstadoGestionCompleta) => <WrapCell color={row.resultado.includes('Contactado') ? '#166534' : '#991b1b'} weight={500}>{row.resultado}</WrapCell> },
-    { key: 'comentario', label: 'Comentario', render: (row: EstadoGestionCompleta) => <WrapCell>{row.comentario}</WrapCell> },
-  ], []);
+  const handleVerMas = () => setVistaExpandida(true);
+  const handleVolver = () => setVistaExpandida(false);
+
+  // ─── Columnas estáticas vista RESUMIDA ───
+  const columnsResumidas: Column[] = useMemo(
+    () => [
+      {
+        key: 'nro',
+        label: 'Nro',
+        render: (row: EstadoGestion) => (
+          <span style={{ fontWeight: 700, color: '#1a2540' }}>{row.nro}</span>
+        ),
+      },
+      { key: 'fecha', label: 'Fecha' },
+      {
+        key: 'operador',
+        label: 'Operador',
+        render: (row: EstadoGestion) => <WrapCell>{row.operador}</WrapCell>,
+      },
+      { key: 'documento', label: 'Documento' },
+      {
+        key: 'operacion',
+        label: 'Operación',
+        render: (row: EstadoGestion) => (
+          <span className="badge badge-info" style={{ fontSize: '10px', textTransform: 'uppercase' }}>
+            {row.operacion}
+          </span>
+        ),
+      },
+      {
+        key: 'resultado',
+        label: 'Resultado',
+        render: (row: EstadoGestion) => (
+          <WrapCell color={row.resultado.includes('Contactado') ? '#166534' : '#991b1b'} weight={500}>
+            {row.resultado}
+          </WrapCell>
+        ),
+      },
+      {
+        key: 'comentario',
+        label: 'Comentario',
+        render: (row: EstadoGestion) => <WrapCell>{row.comentario}</WrapCell>,
+      },
+    ],
+    []
+  );
+
+  // ─── Columnas estáticas vista EXPANDIDA ───
+  const columnsExpandidas: Column[] = useMemo(
+    () => [
+      {
+        key: 'nro',
+        label: 'Nro',
+        render: (row: EstadoGestionCompleta) => (
+          <span style={{ fontWeight: 700, color: '#1a2540' }}>{row.nro}</span>
+        ),
+      },
+      {
+        key: 'cliente',
+        label: 'Cliente',
+        render: (row: EstadoGestionCompleta) => <WrapCell>{row.cliente}</WrapCell>,
+      },
+      {
+        key: 'cartera',
+        label: 'Cartera',
+        render: (row: EstadoGestionCompleta) => <WrapCell>{row.cartera}</WrapCell>,
+      },
+      { key: 'campana', label: 'Campaña' },
+      { key: 'fecha', label: 'Fecha' },
+      {
+        key: 'gestor',
+        label: 'Gestor',
+        render: (row: EstadoGestionCompleta) => <WrapCell>{row.gestor}</WrapCell>,
+      },
+      { key: 'documento', label: 'Documento' },
+      {
+        key: 'operacion',
+        label: 'Operación',
+        render: (row: EstadoGestionCompleta) => (
+          <span className="badge badge-info" style={{ fontSize: '10px', textTransform: 'uppercase' }}>
+            {row.operacion}
+          </span>
+        ),
+      },
+      {
+        key: 'resultado',
+        label: 'Resultado',
+        render: (row: EstadoGestionCompleta) => (
+          <WrapCell color={row.resultado.includes('Contactado') ? '#166534' : '#991b1b'} weight={500}>
+            {row.resultado}
+          </WrapCell>
+        ),
+      },
+      {
+        key: 'comentario',
+        label: 'Comentario',
+        render: (row: EstadoGestionCompleta) => <WrapCell>{row.comentario}</WrapCell>,
+      },
+    ],
+    []
+  );
+
+  const indiceInicio = (pageNumber - 1) * pageSize;
+  const indiceFin = Math.min(pageNumber * pageSize, totalRecords);
 
   // ─── ESTADOS DE CARGA/ERROR ───
   if (!isActive) return null;
@@ -69,52 +160,60 @@ const PanelEstadoGestionRealizada: React.FC<Props> = ({ isActive, id_deudor, id_
     return (
       <PanelLayout title="ESTADO DE GESTIÓN REALIZADA" isActive={isActive}>
         <div style={{ padding: '2rem', color: '#c00' }}>
-          <p>Error al cargar: {error}</p>
+          <p style={{ marginBottom: 12 }}>Error al cargar estados de gestión:</p>
+          <p style={{ fontSize: '0.9em', color: '#666', marginBottom: 16 }}>{error}</p>
+          <button onClick={refetch} style={{ padding: '8px 16px', cursor: 'pointer' }}>
+            Reintentar
+          </button>
         </div>
       </PanelLayout>
     );
   }
 
   return (
-    <PanelLayout 
-      title={vistaExpandida ? 'TODOS LOS ESTADOS DE GESTIÓN' : 'ESTADO DE GESTIÓN REALIZADA'} 
+    <PanelLayout
+      title={vistaExpandida ? 'TODOS LOS ESTADOS DE GESTIÓN' : 'ESTADO DE GESTIÓN REALIZADA'}
       isActive={isActive}
     >
       {!vistaExpandida ? (
-        // ─── VISTA RESUMIDA ───
+        // ═══════════════════════════════════════
+        // VISTA RESUMIDA
+        // ═══════════════════════════════════════
         <div style={{ padding: '16px 0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div style={{ marginBottom: '12px' }}>
             <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
-              {resumido.datosFiltrados.length} estado(s) de gestión filtrado(s)
+              Mostrando {indiceInicio + 1}-{indiceFin} de {totalRecords} estado(s) de gestión
             </span>
           </div>
 
           <Table
             columns={columnsResumidas}
-            data={resumido.datosPaginados}
+            data={paginatedData}
             emptyMessage="No se encontraron estados de gestión"
             enableColumnFilters={true}
-            allData={dataResumido}
-            textFilters={resumido.textFilters}
-            selectedFilters={resumido.selectedFilters}
-            onTextFilterChange={resumido.onTextFilterChange}
-            onSelectedFilterChange={resumido.onSelectedFilterChange}
+            allData={filteredData}
+            textFilters={textFilters}
+            selectedFilters={selectedFilters}
+            onTextFilterChange={onTextFilterChange}
+            onSelectedFilterChange={onSelectedFilterChange}
           />
 
-          <Paginacion
-            paginaActual={resumido.paginaActual}
-            totalPaginas={resumido.totalPaginas}
-            totalRegistros={resumido.datosFiltrados.length}
-            indiceInicio={resumido.indiceInicio}
-            indiceFin={resumido.indiceFin}
-            onPaginaAnterior={() => resumido.setPaginaActual(p => Math.max(1, p - 1))}
-            onPaginaSiguiente={() => resumido.setPaginaActual(p => Math.min(resumido.totalPaginas, p + 1))}
-            onIrAPagina={resumido.setPaginaActual}
-            showPageSizeSelector={true}
-            pageSize={resumido.pageSize}
-            pageSizeOptions={[5, 10, 30, 50]}
-            onPageSizeChange={resumido.setPageSize}
-          />
+          {totalPages > 0 && (
+            <Paginacion
+              paginaActual={pageNumber}
+              totalPaginas={totalPages}
+              totalRegistros={totalRecords}
+              indiceInicio={indiceInicio}
+              indiceFin={indiceFin}
+              onPaginaAnterior={() => setPageNumber(Math.max(1, pageNumber - 1))}
+              onPaginaSiguiente={() => setPageNumber(Math.min(totalPages, pageNumber + 1))}
+              onIrAPagina={setPageNumber}
+              showPageSizeSelector={true}
+              pageSize={pageSize}
+              pageSizeOptions={[5, 10, 30, 50]}
+              onPageSizeChange={setPageSize}
+            />
+          )}
 
           <div style={{ textAlign: 'center', marginTop: '16px' }}>
             <ActionButton
@@ -127,43 +226,29 @@ const PanelEstadoGestionRealizada: React.FC<Props> = ({ isActive, id_deudor, id_
           </div>
         </div>
       ) : (
-        // ─── VISTA EXPANDIDA ───
+        // ═══════════════════════════════════════
+        // VISTA EXPANDIDA
+        // ═══════════════════════════════════════
         <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
-                {expandido.datosFiltrados.length} estado(s) de gestión en total (filtrados)
-              </span>
-              <ActionButton label="Volver" variant="secondary" size="sm" icon="◀" onClick={handleVolver} />
-            </div>
-
-            <Table
-              columns={columnsExpandidas}
-              data={expandido.datosPaginados}
-              emptyMessage="No se encontraron estados de gestión"
-              enableColumnFilters={true}
-              allData={dataExpandido}
-              textFilters={expandido.textFilters}
-              selectedFilters={expandido.selectedFilters}
-              onTextFilterChange={expandido.onTextFilterChange}
-              onSelectedFilterChange={expandido.onSelectedFilterChange}
-            />
-
-            <Paginacion
-              paginaActual={expandido.paginaActual}
-              totalPaginas={expandido.totalPaginas}
-              totalRegistros={expandido.datosFiltrados.length}
-              indiceInicio={expandido.indiceInicio}
-              indiceFin={expandido.indiceFin}
-              onPaginaAnterior={() => expandido.setPaginaActual(p => Math.max(1, p - 1))}
-              onPaginaSiguiente={() => expandido.setPaginaActual(p => Math.min(expandido.totalPaginas, p + 1))}
-              onIrAPagina={expandido.setPaginaActual}
-              showPageSizeSelector={true}
-              pageSize={expandido.pageSize}
-              pageSizeOptions={[5, 10, 30, 50]}
-              onPageSizeChange={expandido.setPageSize}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
+              {completo.length} estado(s) de gestión en total
+            </span>
+            <ActionButton
+              label="Volver"
+              variant="secondary"
+              size="sm"
+              icon="◀"
+              onClick={handleVolver}
             />
           </div>
+
+          <Table
+            columns={columnsExpandidas}
+            data={completo} // ← Datos completos sin paginación (o con paginación si la agregas)
+            emptyMessage="No se encontraron estados de gestión"
+            enableColumnFilters={false} // ← Desactivado para vista expandida simple
+          />
         </div>
       )}
     </PanelLayout>

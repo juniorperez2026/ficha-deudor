@@ -31,7 +31,7 @@ const FichaContent: React.FC<FichaContentProps> = ({
   const [contacto, setContacto] = useState('');
   const [panelActivo, setPanelActivo] = useState<string | null>(null);
   
-  const { data: deudorData } = useDeudorHeader(id_cliente, id_cartera);
+  const { data: deudorData } = useDeudorHeader(id_cliente, id_cartera, id_deudor);
 
   const handleGestionSubmit = (data: GestionForm) => {
     const payload = { ...data, id_cliente, id_cartera, id_deudor, id_contrato, id_usuario };
@@ -68,6 +68,7 @@ const FichaContent: React.FC<FichaContentProps> = ({
               <DeudorHeader 
                 id_cliente={id_cliente}
                 id_cartera={id_cartera}
+                id_deudor={id_deudor}
                 contacto={contacto}
                 onContactoChange={setContacto}
                 compact={true}
@@ -84,8 +85,8 @@ const FichaContent: React.FC<FichaContentProps> = ({
             <PanelDatosAdicionales isActive={panelActivo === 'DATOS ADICIONALES'} id_cliente={id_cliente} id_cartera={id_cartera} id_deudor={id_deudor}/>
             <PanelTelefonosReferenciados isActive={panelActivo === 'TELÉFONOS REFERENCIADOS'} id_cliente={id_cliente} id_deudor={id_deudor} />
             <PanelDireccionesReferenciadas isActive={panelActivo === 'DIRECCIONES REFERENCIADAS'} id_cliente={id_cliente} id_deudor={id_deudor} />
-            <PanelGestionRealizada isActive={panelActivo === 'GESTIÓN REALIZADA'} id_deudor={id_deudor} id_cartera={id_cartera} />
-            <PanelEstadoGestionRealizada isActive={panelActivo === 'ESTADO DE GESTIÓN REALIZADA'} id_deudor={id_deudor} id_cartera={id_cartera} />
+            <PanelGestionRealizada isActive={panelActivo === 'GESTIÓN REALIZADA'} id_cliente={id_cliente} id_cartera={id_cartera} id_deudor={id_deudor} id_usuario={id_usuario}/>
+            <PanelEstadoGestionRealizada isActive={panelActivo === 'ESTADO DE GESTIÓN REALIZADA'} id_cliente={id_cliente} id_cartera={id_cartera} id_deudor={id_deudor}/>
             <FichaGestion onSubmit={handleGestionSubmit} />
           </div>
         </main>

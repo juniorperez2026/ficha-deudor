@@ -277,14 +277,12 @@ const FichaGestion: React.FC<Props> = ({ onSubmit }) => {
               rows={2}
             />
           </div>
+          <div className="ficha-submit ficha-submit--compact">
+            <button className="btn btn-danger btn-sm" type="button" onClick={() => setForm(initialForm)}>Limpiar</button>
+            <button className="btn btn-primary btn-sm" type="button" onClick={() => onSubmit?.(form)}>Guardar Gestión</button>
+          </div>
         </div>
       </div>
-
-      <div className="ficha-submit ficha-submit--compact">
-        <button className="btn btn-danger btn-sm" type="button" onClick={() => setForm(initialForm)}>Limpiar</button>
-        <button className="btn btn-primary btn-sm" type="button" onClick={() => onSubmit?.(form)}>Guardar Gestión</button>
-      </div>
-
       <Modal isOpen={modalOpen} title={modalTitle} onClose={() => setModalOpen(false)} />
     </div>
   );
