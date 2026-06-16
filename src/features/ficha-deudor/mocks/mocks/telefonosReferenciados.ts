@@ -2,7 +2,7 @@ import type { TelefonoReferenciado } from '../../../../shared/types';
 
 const telefonosBase: TelefonoReferenciado[] = [
   {
-    id: '1',
+    id: 1,
     prioridad: 1,
     numero: '****000',
     horario: '',
@@ -21,7 +21,7 @@ const telefonosBase: TelefonoReferenciado[] = [
     reclamoIndecopi: 'SI',
   },
   {
-    id: '2',
+    id: 2,
     prioridad: 0,
     numero: '*****2070',
     horario: '',
@@ -40,7 +40,7 @@ const telefonosBase: TelefonoReferenciado[] = [
     reclamoIndecopi: 'SI',
   },
   {
-    id: '3',
+    id: 3,
     prioridad: 0,
     numero: '*****3191',
     horario: '',
@@ -59,7 +59,7 @@ const telefonosBase: TelefonoReferenciado[] = [
     reclamoIndecopi: 'SI',
   },
   {
-    id: '4',
+    id: 4,
     prioridad: 0,
     numero: '*****2581',
     horario: '',
@@ -78,7 +78,7 @@ const telefonosBase: TelefonoReferenciado[] = [
     reclamoIndecopi: 'SI',
   },
   {
-    id: '5',
+    id: 5,
     prioridad: 0,
     numero: '*****6038',
     horario: '',

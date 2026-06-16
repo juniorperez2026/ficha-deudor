@@ -1,7 +1,7 @@
 import React from 'react';
 
-export interface SelectOption {
-  id: string;
+export type SelectOption<T = string> = {
+  id: T;
   label: string;
 }
 

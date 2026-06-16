@@ -3,24 +3,31 @@ import { ModalFormLayout } from '../../layout/ModalFormLayout';
 import { FormGrid } from '../../../../../shared/components/ui/FormGrid';
 import { InputField, SelectField, TextAreaField } from '../../../../../shared/components/ui';
 import { useModalForm } from '../../../../../shared/hooks/ui/useModalForm';
-import { useTelefonoResultados, useTelefonoOperadores, useTelefonoUbicaciones, 
-         useTelefonoHorarioGestion, useTelefonoFuenteBusqueda } from '../../../hooks/useTelefonosReferenciados';
-import type { TelefonoReferenciado, TelefonoFormData } from '../../../../../shared/types';
+import {
+  useTelefonoResultados,
+  useTelefonoOperadores,
+  useTelefonoUbicaciones,
+  useTelefonoHorarioGestion,
+  useTelefonoFuenteBusqueda,
+  useTelefonoById,
+} from '../../../hooks/useTelefonosReferenciados';
+import type { TelefonoFormData, TelefonoEditarApi, TelefonoEditFormData } from '../../../../../shared/types';
 import {
   prioridadesOptions,
   referenciasOptions,
   reclamoIndecopiOptions,
 } from '../../../mocks/catalogosTelefono';
-import { validateTelefonoForm } from '../../../validations/telefonoValidations';
+import { validateTelefonoEditForm } from '../../../validations/telefonoValidations';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  telefono: TelefonoReferenciado | null;
-  onGuardar?: (data: TelefonoFormData & { id: string }) => void;
+  telefonoId: number | null; // ← CAMBIO: ahora recibe el ID, no el objeto del listado
+  onGuardar?: (data: TelefonoFormData) => void; // ← TelefonoFormData ya incluye id
 }
 
 const initialForm: TelefonoFormData = {
+  id: 0,
   numero: '',
   anexo: '',
   resultado: '',
@@ -30,99 +37,155 @@ const initialForm: TelefonoFormData = {
   horarioGestion: '',
   comentario: '',
   fuenteBusqueda: '',
-  referencia: '',
-  reclamoIndecopi: 'NO',
+  referencia: 0,
+  reclamoIndecopi: false,
 };
 
-const mapToFormData = (entity: object): TelefonoFormData => {
-  const t = entity as TelefonoReferenciado;
-  return {
-    numero: String(t.numero),
-    anexo: String(t.anexo || ''),
-    resultado: String(t.estado),
-    operadorTelefonico: String(t.operadorTelefonico),
-    ubicacion: String(t.refUbicacion),
-    prioridad: String(t.prioridad),
-    horarioGestion: String(t.horario),
-    comentario: '',
-    fuenteBusqueda: String(t.fuente),
-    referencia: String(t.referencia),
-    reclamoIndecopi: String(t.reclamoIndecopi),
-  };
-};
+// ← NUEVO: Mapeo desde GetTelefonoByIdTelefono (usa IDs numéricos de catálogos)
+const mapApiToFormData = (api: TelefonoEditarApi): TelefonoEditFormData  => ({
+  id: api.nId_PersTelef,
+  numero: api.nTelef_Nro,
+  anexo: api.nTelef_Anexo,
+  resultado: String(api.nId_PersTelefOpe),           // ← ID del catálogo (no el nombre)
+  operadorTelefonico: String(api.nId_OperadorTelefonico),
+  ubicacion: String(api.nId_PersRefUbi),              // ← ID del catálogo (no el nombre)
+  prioridad: String(api.nTelef_Prioridad),
+  horarioGestion: String(api.nId_PersDeudorGestionHrs), // ← ID del catálogo (no el nombre)
+  comentario: api.cTelef_Coment,                       // ← ¡AHORA SÍ trae el comentario real!
+  fuenteBusqueda: String(api.nId_Fuente),              // ← ID del catálogo (no el nombre)
+  referencia: api.nreferencia,
+  reclamoIndecopi: api.bReclamo
+});
 
-const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefono, onGuardar }) => {
-  // ─── API: Resultados ───
-    const {
-      data: resultadosData,
-      isLoading: isLoadingResultados,
-      error: errorResultados,
-    } = useTelefonoResultados();
-  
-    const {
-      data: operadoresData,
-      isLoading: isLoadingOperadores,
-      error: errorOperadores,
-    } = useTelefonoOperadores();
-  
-    const {
-      data: ubicacionesData,
-      isLoading: isLoadingUbicaciones,
-      error: errorUbicaciones,
-    } = useTelefonoUbicaciones();
-  
-    const {
-      data: horariosData,
-      isLoading: isLoadingHorarios,
-      error: errorHorarios,
-    } = useTelefonoHorarioGestion();
-  
-    const {
-      data: fuentesBusquedaData,
-      isLoading: isLoadingFuentes,
-      error: errorFuentes,
-    } = useTelefonoFuenteBusqueda();
-  
-    const resultadosOptions = resultadosData?.map(r => ({
-      id: r.id,
-      label: r.nombre,
-    })) ?? [];
-  
-    const operadoresOptions = operadoresData?.map(o => ({
-      id: o.id,
-      label: o.nombre,
-    })) ?? [];
-  
-    const ubicacionesOptions = ubicacionesData?.map(u => ({
-      id: u.id,
-      label: u.nombre,
-    })) ?? [];
-  
-    const horariosGestionOptions = horariosData?.map(h => ({
-      id: h.id,
-      label: h.nombre,
-    })) ?? [];
-  
-    const fuentesBusquedaOptions = fuentesBusquedaData?.map(f => ({
-      id: f.id,
-      label: f.nombre,
-    })) ?? [];  
-  
-  const { form, errors, handleChange, handleSubmit, handleCancel } = useModalForm<TelefonoFormData>({
+const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefonoId, onGuardar }) => {
+  // ← NUEVO: Fetch datos reales del teléfono para editar
+  const {
+    data: telefonoApi,
+    isLoading: isLoadingTelefono,
+    error: errorTelefono,
+  } = useTelefonoById(telefonoId);
+
+  const { form, errors, handleChange, handleSubmit, handleCancel } = useModalForm<TelefonoEditFormData, TelefonoEditarApi>({
     initialForm,
-    entity: telefono,
-    mapEntityToForm: mapToFormData,
+    entity: telefonoApi,              // ← AHORA: objeto real de la API de edición
+    mapEntityToForm: mapApiToFormData, // ← AHORA: mapeo con IDs correctos
     onClose,
     onSubmit: (data) => {
-      if (telefono) {
-        onGuardar?.({ ...data, id: telefono.id });
-      }
+      onGuardar?.(data); // ← data.id ya viene incluido desde el mapeo
     },
-    validate: validateTelefonoForm,
+    validate: validateTelefonoEditForm,
     resetOnClose: true,
   });
+  
+  // ─── Catálogos ───
+  const {
+    data: resultadosData,
+    isLoading: isLoadingResultados,
+    error: errorResultados,
+  } = useTelefonoResultados();
 
-  if (!telefono) return null;
+  const {
+    data: operadoresData,
+    isLoading: isLoadingOperadores,
+    error: errorOperadores,
+  } = useTelefonoOperadores();
+
+  const {
+    data: ubicacionesData,
+    isLoading: isLoadingUbicaciones,
+    error: errorUbicaciones,
+  } = useTelefonoUbicaciones();
+
+  const {
+    data: horariosData,
+    isLoading: isLoadingHorarios,
+    error: errorHorarios,
+  } = useTelefonoHorarioGestion();
+
+  const {
+    data: fuentesBusquedaData,
+    isLoading: isLoadingFuentes,
+    error: errorFuentes,
+  } = useTelefonoFuenteBusqueda();
+
+  const resultadosOptions = resultadosData?.map((r) => ({
+    id: r.id,
+    label: r.nombre,
+  })) ?? [];
+
+  const operadoresOptions = operadoresData?.map((o) => ({
+    id: o.id,
+    label: o.nombre,
+  })) ?? [];
+
+  const ubicacionesOptions = ubicacionesData?.map((u) => ({
+    id: u.id,
+    label: u.nombre,
+  })) ?? [];
+
+  const horariosGestionOptions = horariosData?.map((h) => ({
+    id: h.id,
+    label: h.nombre,
+  })) ?? [];
+
+  const fuentesBusquedaOptions = fuentesBusquedaData?.map((f) => ({
+    id: f.id,
+    label: f.nombre,
+  })) ?? [];
+
+  // ← CORREGIDO: Ambas condiciones deben cumplirse
+  if (!isOpen || !telefonoId) return null;
+
+  // ← NUEVO: Loading state mientras trae los datos del teléfono
+  if (isLoadingTelefono) {
+    return (
+      <ModalFormLayout
+        isOpen={isOpen}
+        title="EDITAR REFERENCIA TELEFÓNICA"
+        onClose={handleCancel}
+        submitLabel="Guardar Cambios"
+        onSubmit={handleSubmit}
+        minHeight="auto"
+      >
+        <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando datos del teléfono...</div>
+      </ModalFormLayout>
+    );
+  }
+
+  // ← NUEVO: Error state si falló la carga
+  if (errorTelefono) {
+    return (
+      <ModalFormLayout
+        isOpen={isOpen}
+        title="EDITAR REFERENCIA TELEFÓNICA"
+        onClose={handleCancel}
+        submitLabel="Guardar Cambios"
+        onSubmit={handleSubmit}
+        minHeight="auto"
+      >
+        <div className="error-message" style={{ padding: '1rem', color: 'red' }}>
+          Error al cargar el teléfono: {errorTelefono}
+        </div>
+      </ModalFormLayout>
+    );
+  }
+
+  if (!telefonoApi) {
+    return (
+      <ModalFormLayout
+        isOpen={isOpen}
+        title="EDITAR REFERENCIA TELEFÓNICA"
+        onClose={handleCancel}
+        submitLabel="Guardar Cambios"
+        onSubmit={handleSubmit}
+        minHeight="auto"
+      >
+        <div className="error-message" style={{ padding: '1rem', color: 'red' }}>
+          No se encontraron datos del teléfono
+        </div>
+      </ModalFormLayout>
+    );
+  }
 
   return (
     <ModalFormLayout
@@ -136,7 +199,7 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefono, onGua
       <FormGrid columns={2}>
         <InputField
           label="Número"
-          layout="inline"  // ← NUEVO
+          layout="inline"
           placeholder="Ingrese número telefónico"
           value={form.numero}
           onChange={(e) => handleChange('numero', e.target.value)}
@@ -146,7 +209,7 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefono, onGua
         />
         <InputField
           label="Anexo"
-          layout="inline"  // ← NUEVO
+          layout="inline"
           placeholder="Anexo"
           value={form.anexo}
           onChange={(e) => handleChange('anexo', e.target.value)}
@@ -158,7 +221,7 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefono, onGua
       <FormGrid columns={3}>
         <SelectField
           label="Resultado"
-          layout="inline"  // ← NUEVO
+          layout="inline"
           options={resultadosOptions}
           value={form.resultado}
           onChange={(v) => handleChange('resultado', v)}
@@ -169,7 +232,7 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefono, onGua
         />
         <SelectField
           label="Operador Telf."
-          layout="inline"  // ← NUEVO
+          layout="inline"
           options={operadoresOptions}
           value={form.operadorTelefonico}
           onChange={(v) => handleChange('operadorTelefonico', v)}
@@ -180,7 +243,7 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefono, onGua
         />
         <SelectField
           label="Ubicación"
-          layout="inline"  // ← NUEVO
+          layout="inline"
           options={ubicacionesOptions}
           value={form.ubicacion}
           onChange={(v) => handleChange('ubicacion', v)}
@@ -194,7 +257,7 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefono, onGua
       <FormGrid columns={2}>
         <SelectField
           label="Prioridad"
-          layout="inline"  // ← NUEVO
+          layout="inline"
           options={prioridadesOptions}
           value={form.prioridad}
           onChange={(v) => handleChange('prioridad', v)}
@@ -203,7 +266,7 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefono, onGua
         />
         <SelectField
           label="Horario Gestión"
-          layout="inline"  // ← NUEVO
+          layout="inline"
           options={horariosGestionOptions}
           value={form.horarioGestion}
           onChange={(v) => handleChange('horarioGestion', v)}
@@ -215,7 +278,7 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefono, onGua
 
       <TextAreaField
         label="Comentario"
-        layout="inline"  // ← NUEVO
+        layout="inline"
         placeholder="Ingrese comentario..."
         value={form.comentario}
         onChange={(e) => handleChange('comentario', e.target.value)}
@@ -226,7 +289,7 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefono, onGua
       <FormGrid columns={2}>
         <SelectField
           label="Fuente Búsqueda"
-          layout="inline"  // ← NUEVO
+          layout="inline"
           options={fuentesBusquedaOptions}
           value={form.fuenteBusqueda}
           onChange={(v) => handleChange('fuenteBusqueda', v)}
@@ -236,7 +299,7 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefono, onGua
         />
         <SelectField
           label="Referencia"
-          layout="inline"  // ← NUEVO
+          layout="inline"
           options={referenciasOptions}
           value={form.referencia}
           onChange={(v) => handleChange('referencia', v)}
@@ -252,6 +315,7 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefono, onGua
         value={form.reclamoIndecopi}
         onChange={(v) => handleChange('reclamoIndecopi', v)}
         error={errors.reclamoIndecopi}
+        hidePlaceholder
       />
 
       {Object.keys(errors).length > 0 && (

@@ -83,8 +83,8 @@ const FichaContent: React.FC<FichaContentProps> = ({
           <div className="ficha-content">
             <DocumentosTable id_cliente={id_cliente} id_cartera={id_cartera} id_deudor={id_deudor} id_contrato={id_contrato}/>
             <PanelDatosAdicionales isActive={panelActivo === 'DATOS ADICIONALES'} id_cliente={id_cliente} id_cartera={id_cartera} id_deudor={id_deudor}/>
-            <PanelTelefonosReferenciados isActive={panelActivo === 'TELÉFONOS REFERENCIADOS'} id_cliente={id_cliente} id_deudor={id_deudor} />
-            <PanelDireccionesReferenciadas isActive={panelActivo === 'DIRECCIONES REFERENCIADAS'} id_cliente={id_cliente} id_deudor={id_deudor} />
+            <PanelTelefonosReferenciados isActive={panelActivo === 'TELÉFONOS REFERENCIADOS'} id_cliente={id_cliente} id_deudor={id_deudor} id_usuario={id_usuario}/>
+            <PanelDireccionesReferenciadas isActive={panelActivo === 'DIRECCIONES REFERENCIADAS'} id_cliente={id_cliente} id_deudor={id_deudor} id_usuario={id_usuario} />
             <PanelGestionRealizada isActive={panelActivo === 'GESTIÓN REALIZADA'} id_cliente={id_cliente} id_cartera={id_cartera} id_deudor={id_deudor} id_usuario={id_usuario}/>
             <PanelEstadoGestionRealizada isActive={panelActivo === 'ESTADO DE GESTIÓN REALIZADA'} id_cliente={id_cliente} id_cartera={id_cartera} id_deudor={id_deudor}/>
             <FichaGestion onSubmit={handleGestionSubmit} />

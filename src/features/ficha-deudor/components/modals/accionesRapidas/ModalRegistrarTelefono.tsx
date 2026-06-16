@@ -20,6 +20,7 @@ interface Props {
 }
 
 const initialForm: TelefonoFormData = {
+  id:0,   //Acá no sirve porque el POST lo hace la BD pero en PUT si se usa 
   numero: '',
   anexo: '',
   resultado: '',
@@ -29,8 +30,8 @@ const initialForm: TelefonoFormData = {
   horarioGestion: '',
   comentario: '',
   fuenteBusqueda: '',
-  referencia: '',
-  reclamoIndecopi: 'NO',
+  referencia: 0,
+  reclamoIndecopi: false,
 };
 
 const ModalRegistrarTelefono: React.FC<Props> = ({ isOpen, onClose, onRegistrar }) => {
@@ -56,13 +57,11 @@ const ModalRegistrarTelefono: React.FC<Props> = ({ isOpen, onClose, onRegistrar 
   const {
     data: horariosData,
     isLoading: isLoadingHorarios,
-    error: errorHorarios,
   } = useTelefonoHorarioGestion();
 
   const {
     data: fuentesBusquedaData,
     isLoading: isLoadingFuentes,
-    error: errorFuentes,
   } = useTelefonoFuenteBusqueda();
 
   const resultadosOptions = resultadosData?.map(r => ({
@@ -129,7 +128,6 @@ const ModalRegistrarTelefono: React.FC<Props> = ({ isOpen, onClose, onRegistrar 
           value={form.anexo}
           onChange={(e) => handleChange('anexo', e.target.value)}
           maxLength={10}
-          error={errors.anexo}
         />
       </FormGrid>
 
@@ -177,7 +175,6 @@ const ModalRegistrarTelefono: React.FC<Props> = ({ isOpen, onClose, onRegistrar 
           value={form.prioridad}
           onChange={(v) => handleChange('prioridad', v)}
           placeholder="-- Seleccione --"
-          error={errors.prioridad}
         />
         <SelectField
           label="Horario Gestión"
@@ -186,7 +183,6 @@ const ModalRegistrarTelefono: React.FC<Props> = ({ isOpen, onClose, onRegistrar 
           value={form.horarioGestion}
           onChange={(v) => handleChange('horarioGestion', v)}
           placeholder={isLoadingHorarios ? 'Cargando...' : '-- Seleccione --'}
-          error={errors.horarioGestion || errorHorarios || ''}
           disabled={isLoadingHorarios}
         />
       </FormGrid>
@@ -198,7 +194,6 @@ const ModalRegistrarTelefono: React.FC<Props> = ({ isOpen, onClose, onRegistrar 
         value={form.comentario}
         onChange={(e) => handleChange('comentario', e.target.value)}
         rows={2}
-        error={errors.comentario}
       />
 
       <FormGrid columns={2}>
@@ -209,7 +204,6 @@ const ModalRegistrarTelefono: React.FC<Props> = ({ isOpen, onClose, onRegistrar 
           value={form.fuenteBusqueda}
           onChange={(v) => handleChange('fuenteBusqueda', v)}
           placeholder={isLoadingFuentes ? 'Cargando...' : '-- Seleccione --'}
-          error={errors.fuenteBusqueda || errorFuentes || ''}
           disabled={isLoadingFuentes}
         />
         <SelectField
@@ -219,7 +213,6 @@ const ModalRegistrarTelefono: React.FC<Props> = ({ isOpen, onClose, onRegistrar 
           value={form.referencia}
           onChange={(v) => handleChange('referencia', v)}
           placeholder="-- Seleccione --"
-          error={errors.referencia}
         />
       </FormGrid>
 
@@ -229,7 +222,7 @@ const ModalRegistrarTelefono: React.FC<Props> = ({ isOpen, onClose, onRegistrar 
         options={reclamoIndecopiOptions}
         value={form.reclamoIndecopi}
         onChange={(v) => handleChange('reclamoIndecopi', v)}
-        error={errors.reclamoIndecopi}
+        hidePlaceholder
       />
 
       {Object.keys(errors).length > 0 && (

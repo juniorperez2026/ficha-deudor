@@ -1,104 +1,120 @@
-import React, { useEffect, useState } from 'react';
+import React, { useMemo } from 'react';  // ← SIN useEffect
 import { ModalFormLayout } from '../../layout/ModalFormLayout';
 import { FormGrid } from '../../../../../shared/components/ui/FormGrid';
 import { InputField, SelectField, TextAreaField } from '../../../../../shared/components/ui';
 import { useModalForm } from '../../../../../shared/hooks/ui/useModalForm';
-import type { DireccionReferenciada, DireccionEditFormData } from '../../../../../shared/types';
+import type { DireccionEditFormData, DireccionByIdApi } from '../../../../../shared/types';
 import {
-  refUbicacionDirOptions,
+  useDepartamentos,
+  useProvincias,
+  useDistritos,
+  useDireccionUbicaciones,
+} from '../../../hooks/useDireccionesReferenciadas';
+import {
   llegoDeBaseOptions,
   tipoDeudorOptions,
   estadosDireccionOptions,
-  getDepartamentos,
-  getProvinciasByDepartamento,
-  getDistritosByProvincia,
 } from '../../../mocks/catalogosDireccion';
 import { validateDireccionEditForm } from '../../../validations/direccionValidations';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  direccion: DireccionReferenciada | null;
+  direccionId: string | null;
+  direccionData: DireccionByIdApi | null;
   onGuardar?: (data: DireccionEditFormData & { id: string }) => void;
 }
 
 const initialForm: DireccionEditFormData = {
+  id: '',
   direccion: '',
   departamento: '',
   provincia: '',
   distrito: '',
   refUbicacion: '',
   comentario: '',
-  llegoDeBase: '',
+  llegoDeBase: false,
   tipoDeudor: '',
   nombreAval: '',
-  estado: '',
+  estado: true,
 };
 
-const mapToFormData = (entity: object): DireccionEditFormData => {
-  const d = entity as DireccionReferenciada;
-  return {
-    direccion: d.direccion.split(',')[0] || d.direccion,
-    departamento: d.departamento || '',
-    provincia: d.provincia || '',
-    distrito: d.distrito || '',
-    refUbicacion: d.refUbicacion || '',
-    comentario: d.comentario || '',
-    llegoDeBase: d.llegoDeBase || '',
-    tipoDeudor: d.tipoDeudor || '',
-    nombreAval: d.nombreAval || (d.tipoDeudor === 'Titular' ? '—' : ''),
-    estado: d.estado || '',
-  };
-};
+const mapToFormData = (entity: DireccionByIdApi): DireccionEditFormData => ({
+  id: String(entity.nId_PersDirecc),
+  direccion: entity.cDirecc_Nomb,
+  departamento: String(entity.nId_Departamento),
+  provincia: String(entity.nId_Provincia),
+  distrito: String(entity.nId_Distrito),
+  refUbicacion: String(entity.nId_PersRefUbi),
+  comentario: entity.cDirecc_Coment,
+  llegoDeBase: entity.bOrigen_Base,
+  tipoDeudor: entity.cTipoCoDeudor,
+  nombreAval: entity.nombreAval,
+  estado: entity.bEstado,
+});
 
-const ModalEditarDireccion: React.FC<Props> = ({ isOpen, onClose, direccion, onGuardar }) => {
-  const [provincias, setProvincias] = useState<Array<{ id: string; label: string }>>([]);
-  const [distritos, setDistritos] = useState<Array<{ id: string; label: string }>>([]);
+const ModalEditarDireccion: React.FC<Props> = ({ isOpen, onClose, direccionId, direccionData, onGuardar }) => {
+  const { form, errors, handleChange, handleSubmit, handleCancel } = 
+    useModalForm<DireccionEditFormData, DireccionByIdApi>({
+      initialForm,
+      entity: direccionData,
+      mapEntityToForm: mapToFormData,
+      onClose,
+      onSubmit: (data) => {
+        if (direccionId) {
+          onGuardar?.({ ...data, id: direccionId });
+        }
+      },
+      validate: validateDireccionEditForm,
+      resetOnClose: true,
+    });
 
-  const { form, errors, handleChange, handleSubmit, handleCancel } = useModalForm<DireccionEditFormData>({
-    initialForm,
-    entity: direccion,
-    mapEntityToForm: mapToFormData,
-    onClose,
-    onSubmit: (data) => {
-      if (direccion) {
-        onGuardar?.({ ...data, id: direccion.id });
-      }
-    },
-    validate: validateDireccionEditForm,
-    resetOnClose: true,
-  });
+  const {
+    data: departamentosData,
+    isLoading: isLoadingDepartamentos,
+    error: errorDepartamentos,
+  } = useDepartamentos();
 
-  const departamentos = getDepartamentos();
+  const {
+    data: provinciasData,
+    isLoading: isLoadingProvincias,
+  } = useProvincias(form.departamento || null);
 
-  useEffect(() => {
-    if (form.departamento) {
-      const nuevasProvincias = getProvinciasByDepartamento(form.departamento);
-      setProvincias(nuevasProvincias);
-      if (form.provincia && !nuevasProvincias.find(p => p.id === form.provincia)) {
-        handleChange('provincia', '');
-        handleChange('distrito', '');
-        setDistritos([]);
-      }
-    } else {
-      setProvincias([]);
-      setDistritos([]);
-    }
-  }, [form.departamento]);
+  const {
+    data: distritosData,
+    isLoading: isLoadingDistritos,
+  } = useDistritos(
+    form.departamento || null,
+    form.provincia || null
+  );
 
-  useEffect(() => {
-    if (form.departamento && form.provincia) {
-      const nuevosDistritos = getDistritosByProvincia(form.departamento, form.provincia);
-      setDistritos(nuevosDistritos);
-      if (form.distrito && !nuevosDistritos.find(d => d.id === form.distrito)) {
-        handleChange('distrito', '');
-      }
-    } else {
-      setDistritos([]);
-    }
-  }, [form.departamento, form.provincia]);
+  const {
+    data: ubicacionesData,
+    isLoading: isLoadingUbicaciones,
+    error: errorUbicaciones,
+  } = useDireccionUbicaciones();
 
-  if (!direccion) return null;
+  const departamentos = useMemo(() =>
+    departamentosData?.map(d => ({ id: d.id, label: d.nombre })) ?? [],
+    [departamentosData]
+  );
+
+  const provincias = useMemo(() =>
+    provinciasData?.map(p => ({ id: p.id, label: p.nombre })) ?? [],
+    [provinciasData]
+  );
+
+  const distritos = useMemo(() =>
+    distritosData?.map(d => ({ id: d.id, label: d.nombre })) ?? [],
+    [distritosData]
+  );
+
+  const refUbicacionOptions = useMemo(() =>
+    ubicacionesData?.map(u => ({ id: u.id, label: u.nombre })) ?? [],
+    [ubicacionesData]
+  );
+
+  if (!isOpen || !direccionId) return null;
 
   return (
     <ModalFormLayout
@@ -111,7 +127,7 @@ const ModalEditarDireccion: React.FC<Props> = ({ isOpen, onClose, direccion, onG
     >
       <InputField
         label="Dirección *"
-        layout="inline"  // ← NUEVO
+        layout="inline"
         placeholder="Ingrese dirección completa"
         value={form.direccion}
         onChange={(e) => handleChange('direccion', e.target.value)}
@@ -122,33 +138,34 @@ const ModalEditarDireccion: React.FC<Props> = ({ isOpen, onClose, direccion, onG
       <FormGrid columns={3}>
         <SelectField
           label="Departamento *"
-          layout="inline"  // ← NUEVO
+          layout="inline"
           options={departamentos}
           value={form.departamento}
           onChange={(v) => handleChange('departamento', v)}
-          placeholder="-- Seleccione --"
-          error={errors.departamento}
+          placeholder={isLoadingDepartamentos ? 'Cargando...' : '-- Seleccione --'}
+          error={errors.departamento || errorDepartamentos || ''}
           required
+          disabled={isLoadingDepartamentos}
         />
         <SelectField
           label="Provincia *"
-          layout="inline"  // ← NUEVO
+          layout="inline"
           options={provincias}
           value={form.provincia}
           onChange={(v) => handleChange('provincia', v)}
-          placeholder="-- Seleccione --"
-          disabled={!form.departamento}
+          placeholder={isLoadingProvincias ? 'Cargando...' : '-- Seleccione --'}
+          disabled={!form.departamento || isLoadingProvincias}
           error={errors.provincia}
           required
         />
         <SelectField
           label="Distrito *"
-          layout="inline"  // ← NUEVO
+          layout="inline"
           options={distritos}
           value={form.distrito}
           onChange={(v) => handleChange('distrito', v)}
-          placeholder="-- Seleccione --"
-          disabled={!form.provincia}
+          placeholder={isLoadingDistritos ? 'Cargando...' : '-- Seleccione --'}
+          disabled={!form.provincia || isLoadingDistritos}
           error={errors.distrito}
           required
         />
@@ -156,18 +173,18 @@ const ModalEditarDireccion: React.FC<Props> = ({ isOpen, onClose, direccion, onG
 
       <SelectField
         label="Referencia de Ubicación *"
-        layout="inline"  // ← NUEVO
-        options={refUbicacionDirOptions}
+        layout="inline"
+        options={refUbicacionOptions}
         value={form.refUbicacion}
         onChange={(v) => handleChange('refUbicacion', v)}
-        placeholder="-- Seleccione --"
-        error={errors.refUbicacion}
-        required
+        error={errors.refUbicacion || errorUbicaciones || ''}
+        hidePlaceholder
+        disabled={isLoadingUbicaciones}
       />
 
       <TextAreaField
         label="Comentario / Des. Ref. (Opcional)"
-        layout="inline"  // ← NUEVO
+        layout="inline"
         placeholder="Ingrese comentario o descripción de referencia..."
         value={form.comentario}
         onChange={(e) => handleChange('comentario', e.target.value)}
@@ -178,51 +195,37 @@ const ModalEditarDireccion: React.FC<Props> = ({ isOpen, onClose, direccion, onG
       <FormGrid columns={2}>
         <SelectField
           label="Llegó de Base *"
-          layout="inline"  // ← NUEVO
+          layout="inline"
           options={llegoDeBaseOptions}
           value={form.llegoDeBase}
           onChange={(v) => handleChange('llegoDeBase', v)}
-          placeholder="-- Seleccione --"
           error={errors.llegoDeBase}
-          required
+          hidePlaceholder
         />
         <SelectField
           label="Tipo Deudor *"
-          layout="inline"  // ← NUEVO
+          layout="inline"
           options={tipoDeudorOptions}
           value={form.tipoDeudor}
           onChange={(v) => {
             handleChange('tipoDeudor', v);
-            if (v !== 'AVAL' && v !== 'GARANTE') {
+            if (v !== 'AVAL' && v !== 'TITULAR') {
               handleChange('nombreAval', '');
             }
           }}
-          placeholder="-- Seleccione --"
           error={errors.tipoDeudor}
-          required
+          hidePlaceholder
         />
       </FormGrid>
 
-      {(form.tipoDeudor === 'AVAL' || form.tipoDeudor === 'GARANTE') && (
-        <InputField
-          label="Nombre Aval / Garante *"
-          layout="inline"  // ← NUEVO
-          placeholder="Ingrese el nombre del aval o garante"
-          value={form.nombreAval}
-          onChange={(e) => handleChange('nombreAval', e.target.value)}
-          error={errors.nombreAval}
-          required
-        />
-      )}
-
       <SelectField
         label="Estado *"
-        layout="inline"  // ← NUEVO
+        layout="inline"
         options={estadosDireccionOptions}
         value={form.estado}
         onChange={(v) => handleChange('estado', v)}
-        placeholder="-- Seleccione --"
         error={errors.estado}
+        hidePlaceholder
         required
       />
 

@@ -3,8 +3,14 @@ import {
   fetchDireccionesReferenciadas,
   createDireccion,
   updateDireccion,
+  fetchDepartamentos,
+  fetchProvincias,
+  fetchDistritos,
+  fetchDireccionUbicaciones,
+  fetchDireccionById,
 } from '../api/direccionesReferenciadasApi';
-import type { DireccionReferenciada, DireccionFormData, DireccionEditFormData } from '../../../shared/types';
+import type { DireccionReferenciada, DireccionFormData, DireccionEditFormData, Departamento, Provincia, Distrito, DireccionUbicacion, DireccionByIdApi } from '../../../shared/types';
+import { useApiResource } from '../../../shared/hooks/useApiResource';
 
 export interface TextFilters {
   [columnKey: string]: string;
@@ -37,7 +43,8 @@ interface UseDireccionesReferenciadasReturn {
 
 export function useDireccionesReferenciadas(
   id_cliente: string,
-  id_deudor: string
+  id_deudor: string,
+  id_usuario: string
 ): UseDireccionesReferenciadasReturn {
   const [allData, setAllData] = useState<DireccionReferenciada[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -154,7 +161,7 @@ export function useDireccionesReferenciadas(
   const create = useCallback(
     async (formData: DireccionFormData) => {
       try {
-        await createDireccion(id_cliente, id_deudor, formData);
+        await createDireccion(id_cliente, id_deudor, id_usuario, formData);
         await refetch();
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Error al crear dirección';
@@ -162,14 +169,14 @@ export function useDireccionesReferenciadas(
         throw err;
       }
     },
-    [id_cliente, id_deudor, refetch]
+    [id_cliente, id_deudor, id_usuario, refetch]
   );
 
   // ─── UPDATE ───
   const update = useCallback(
     async (id: string, formData: DireccionEditFormData) => {
       try {
-        await updateDireccion(id_cliente, id_deudor, id, formData);
+        await updateDireccion(id_cliente, id_deudor, id_usuario, id, formData);
         await refetch();
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Error al actualizar dirección';
@@ -177,7 +184,7 @@ export function useDireccionesReferenciadas(
         throw err;
       }
     },
-    [id_cliente, id_deudor, refetch]
+    [id_cliente, id_deudor, id_usuario, refetch]
   );
 
   return {
@@ -200,4 +207,89 @@ export function useDireccionesReferenciadas(
     create,
     update,
   };
+}
+
+// ─── GET por ID ───
+export function useDireccionById(idDireccion: string | null) {
+  const [data, setData] = useState<DireccionByIdApi | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!idDireccion) {
+      setData(null);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    setIsLoading(true);
+    setError(null);
+
+    fetchDireccionById(idDireccion, controller.signal)
+      .then(setData)
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          setError(err.message);
+          setData(null);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [idDireccion]);
+
+  return { data, isLoading, error };
+}
+
+export function useDepartamentos() {
+  const fetcher = useCallback(
+    (signal: AbortSignal) => fetchDepartamentos(signal),
+    []
+  );
+
+  return useApiResource<Departamento[]>(fetcher, []);
+}
+
+export function useProvincias(idDepartamento: string | null) {
+  const fetcher = useCallback(
+    (signal: AbortSignal) => {
+      if (!idDepartamento) {
+        return Promise.resolve([] as Provincia[]);
+      }
+      return fetchProvincias(idDepartamento, signal);
+    },
+    [idDepartamento]
+  );
+
+  return useApiResource<Provincia[]>(fetcher, [idDepartamento]);
+}
+
+export function useDistritos(
+  idDepartamento: string | null,
+  idProvincia: string | null
+) {
+  const fetcher = useCallback(
+    (signal: AbortSignal) => {
+      if (!idDepartamento || !idProvincia) {
+        return Promise.resolve([] as Distrito[]);
+      }
+      return fetchDistritos(idDepartamento, idProvincia, signal);
+    },
+    [idDepartamento, idProvincia]
+  );
+
+  return useApiResource<Distrito[]>(fetcher, [idDepartamento, idProvincia]);
+}
+
+export function useDireccionUbicaciones() {
+  const fetcher = useCallback(
+    (signal: AbortSignal) => fetchDireccionUbicaciones(signal),
+    []
+  );
+
+  return useApiResource<DireccionUbicacion[]>(fetcher, []);
 }

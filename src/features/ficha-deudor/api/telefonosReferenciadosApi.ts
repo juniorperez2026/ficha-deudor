@@ -4,7 +4,10 @@ import type { TelefonoReferenciado, TelefonoFormData, ApiResponse,
               TelefonoReferenciadoApi, ApiResponseSimple, TelefonoList, 
               TelefonoResultadoApi, TelefonoOperadorApi,
               TelefonoUbicacionApi, TelefonoHorarioGestionApi,
-              TelefonoFuenteBusquedaApi} from '../../../shared/types/indexApi';
+              TelefonoFuenteBusquedaApi,
+              TelefonoEditarApi,
+              CreateTelefonoResponse,
+              CreateTelefonoRequest} from '../../../shared/types/indexApi';
 
 const BASE_GESTION = '/v1/Gestion';
 const BASE_TELEFONO = '/v1/Telefono';
@@ -30,7 +33,7 @@ export async function fetchTelefonosReferenciados(
   }
 
   return result.response.map((item) => ({
-    id: item.nroTelefono,
+    id: item.nId_PersTelef,
     prioridad: item.prioridad,
     numero: item.nroTelefono,                   // nroTelefono → numero
     horario: item.horario,
@@ -46,63 +49,75 @@ export async function fetchTelefonosReferenciados(
     // Campos que no vienen en el GET pero existen en el type del frontend
     anexo: '',
     operadorTelefonico: '',
-    referencia: '',
-    reclamoIndecopi: '',
+    referencia: 0,
+    reclamoIndecopi: false,
   }));
+}
+
+export async function fetchTelefonoById(
+  idTelefono: number,
+  signal?: AbortSignal
+): Promise<TelefonoEditarApi> {
+  // ← El ID va en el PATH, no como query parameter
+  const result = await apiClient<ApiResponseSimple<TelefonoEditarApi>>(
+    `${BASE_TELEFONO}/${idTelefono}`,  // ← /v1/Telefono/28494035
+    { signal }
+  );
+
+  if (result.statusCode !== 200) {
+    throw new Error(result.message || 'Error cargando teléfono para editar');
+  }
+
+  return result.response;
 }
 
 // ─── POST: Crear nuevo teléfono ───
 export async function createTelefono(
   id_cliente: string,
   id_deudor: string,
+  id_usuario: string,
   data: TelefonoFormData
-): Promise<TelefonoReferenciado> {
-  return apiClient<TelefonoReferenciado>(
-    `${BASE_GESTION}/CreateTelefono`,
+): Promise<CreateTelefonoResponse> {
+  const body: CreateTelefonoRequest = {
+    nId_PersDeudor: Number(id_deudor) || 0,
+    nTelef_Pre: '',
+    nTelef_Nro: data.numero,
+    nTelef_Anexo: data.anexo,
+    nId_PersRefUbi: Number(data.ubicacion) || 0,
+    nTelef_Prioridad: Number(data.prioridad) || 0,
+    cTelef_Coment: data.comentario,
+    nId_PersDeudorGestionHrs: Number(data.horarioGestion) || 0,
+    nId_PersTelefOpe: Number(data.resultado) || 0,
+    nId_Fuente: Number(data.fuenteBusqueda) || 0,
+    nreferencia: Number(data.referencia) || 0,
+    nid_usuarioupd: Number(id_usuario) || 0,
+    nId_OperadorTelefonico: Number(data.operadorTelefonico) || 0,
+    bEstado: true, 
+    dFecUlt_PerstelefOpe: new Date().toISOString(),
+    dFecCarga_PersTelef: new Date().toISOString(),
+    bReclamo: data.reclamoIndecopi,
+  };
+
+  const result = await apiClient<ApiResponse<CreateTelefonoResponse>>(
+    `${BASE_TELEFONO}`,  // ← /v1/Telefono
     {
       method: 'POST',
-      body: {
-        nId_Cliente: id_cliente,
-        nId_Persdeudor: id_deudor,
-        ...data,
-      },
-      mock: () => {
-        const nuevo: TelefonoReferenciado = {
-          id: `TEL-${Date.now()}`,
-          prioridad: parseInt(data.prioridad, 10) || 0,
-          numero: data.numero,
-          horario: data.horarioGestion,
-          refUbicacion: data.ubicacion,
-          estado: data.resultado,
-          fechaEstado: new Date().toLocaleDateString('es-PE'),
-          fechaBase: new Date().toLocaleDateString('es-PE'),
-          contactados: '0%',
-          noContactados: 0,
-          ivr: '0',
-          fuente: data.fuenteBusqueda,
-          ordenSearch: 99,
-          anexo: data.anexo,
-          operadorTelefonico: data.operadorTelefonico,
-          referencia: data.referencia,
-          reclamoIndecopi: data.reclamoIndecopi,
-        };
-
-        if (!mockTelefonosReferenciados[id_deudor]) {
-          mockTelefonosReferenciados[id_deudor] = [];
-        }
-        mockTelefonosReferenciados[id_deudor].push(nuevo);
-
-        return nuevo;
-      },
+      body,
     }
   );
+
+  if (result.statusCode !== 200) {
+    throw new Error(result.message || 'Error al crear teléfono');
+  }
+
+  return result.response;
 }
 
 // ─── PUT: Actualizar teléfono existente ───
 export async function updateTelefono(
     id_cliente: string,
     id_deudor: string,
-    id_telefono: string,
+    id_telefono: number,
     data: TelefonoFormData
   ): Promise<TelefonoReferenciado> {
     return apiClient<TelefonoReferenciado>(
@@ -144,82 +159,82 @@ export async function updateTelefono(
     );
   }
 
-  export async function fetchTelefonoResultados(signal?: AbortSignal): Promise<TelefonoList[]> {
-    const result = await apiClient<ApiResponseSimple<TelefonoResultadoApi[]>>(
-      `${BASE_TELEFONO}/GetTelefonoResultados`,
-      { signal }
-    );
+export async function fetchTelefonoResultados(signal?: AbortSignal): Promise<TelefonoList[]> {
+  const result = await apiClient<ApiResponseSimple<TelefonoResultadoApi[]>>(
+    `${BASE_TELEFONO}/GetTelefonoResultados`,
+    { signal }
+  );
 
-    if (result.statusCode !== 200) {
-      throw new Error(result.message || 'Error cargando resultados telefónicos');
-    }
-
-    return result.response.map(item => ({
-      id: String(item.nId_PersTelefOpe),
-      nombre: item.cNombre_PersTelefOpe,
-    }));
-  };
-
-  export async function fetchTelefonoOperadores(signal?: AbortSignal): Promise<TelefonoList[]> {
-    const result = await apiClient<ApiResponseSimple<TelefonoOperadorApi[]>>(
-      `${BASE_TELEFONO}/GetTelefonoOperadores`,
-      { signal }
-    );
-
-    if (result.statusCode !== 200) {
-      throw new Error(result.message || 'Error cargando operadores telefónicos');
-    }
-
-    return result.response.map(item => ({
-      id: String(item.nId_OperadorTelefonico),
-      nombre: item.cAbrevOperadorTelef,
-    }));
+  if (result.statusCode !== 200) {
+    throw new Error(result.message || 'Error cargando resultados telefónicos');
   }
 
-  export async function fetchTelefonoUbicaciones(signal?: AbortSignal): Promise<TelefonoList[]> {
-    const result = await apiClient<ApiResponseSimple<TelefonoUbicacionApi[]>>(
-      `${BASE_TELEFONO}/GetTelefonoUbicaciones`,
-      { signal }
-    );
+  return result.response.map(item => ({
+    id: String(item.nId_PersTelefOpe),
+    nombre: item.cNombre_PersTelefOpe,
+  }));
+};
 
-    if (result.statusCode !== 200) {
-      throw new Error(result.message || 'Error cargando ubicaciones telefónicas');
-    }
+export async function fetchTelefonoOperadores(signal?: AbortSignal): Promise<TelefonoList[]> {
+  const result = await apiClient<ApiResponseSimple<TelefonoOperadorApi[]>>(
+    `${BASE_TELEFONO}/GetTelefonoOperadores`,
+    { signal }
+  );
 
-    return result.response.map(item => ({
-      id: String(item.nId_PersRefUbi),
-      nombre: item.cNombre_PersRefUbi,
-    }));
+  if (result.statusCode !== 200) {
+    throw new Error(result.message || 'Error cargando operadores telefónicos');
   }
 
-  export async function fetchTelefonoHorarioGestion(signal?: AbortSignal): Promise<TelefonoList[]> {
-    const result = await apiClient<ApiResponseSimple<TelefonoHorarioGestionApi[]>>(
-      `${BASE_TELEFONO}/GetTelefonoHorarioGestion`,
-      { signal }
-    );
+  return result.response.map(item => ({
+    id: String(item.nId_OperadorTelefonico),
+    nombre: item.cAbrevOperadorTelef,
+  }));
+}
 
-    if (result.statusCode !== 200) {
-      throw new Error(result.message || 'Error cargando horarios de gestión');
-    }
+export async function fetchTelefonoUbicaciones(signal?: AbortSignal): Promise<TelefonoList[]> {
+  const result = await apiClient<ApiResponseSimple<TelefonoUbicacionApi[]>>(
+    `${BASE_TELEFONO}/GetTelefonoUbicaciones`,
+    { signal }
+  );
 
-    return result.response.map(item => ({
-      id: String(item.nId_PersDeudorGestionHrs),
-      nombre: item.cNombren_PersDeudorGestionHrs,
-    }));
+  if (result.statusCode !== 200) {
+    throw new Error(result.message || 'Error cargando ubicaciones telefónicas');
   }
 
-  export async function fetchTelefonoFuenteBusqueda(signal?: AbortSignal): Promise<TelefonoList[]> {
-    const result = await apiClient<ApiResponseSimple<TelefonoFuenteBusquedaApi[]>>(
-      `${BASE_TELEFONO}/GetTelefonoFuenteBusqueda`,
-      { signal }
-    );
+  return result.response.map(item => ({
+    id: String(item.nId_PersRefUbi),
+    nombre: item.cNombre_PersRefUbi,
+  }));
+}
 
-    if (result.statusCode !== 200) {
-      throw new Error(result.message || 'Error cargando fuentes de búsqueda');
-    }
+export async function fetchTelefonoHorarioGestion(signal?: AbortSignal): Promise<TelefonoList[]> {
+  const result = await apiClient<ApiResponseSimple<TelefonoHorarioGestionApi[]>>(
+    `${BASE_TELEFONO}/GetTelefonoHorarioGestion`,
+    { signal }
+  );
 
-    return result.response.map(item => ({
-      id: String(item.nId_Fuente),
-      nombre: item.cDescripcion,
-    }));
+  if (result.statusCode !== 200) {
+    throw new Error(result.message || 'Error cargando horarios de gestión');
   }
+
+  return result.response.map(item => ({
+    id: String(item.nId_PersDeudorGestionHrs),
+    nombre: item.cNombren_PersDeudorGestionHrs,
+  }));
+}
+
+export async function fetchTelefonoFuenteBusqueda(signal?: AbortSignal): Promise<TelefonoList[]> {
+  const result = await apiClient<ApiResponseSimple<TelefonoFuenteBusquedaApi[]>>(
+    `${BASE_TELEFONO}/GetTelefonoFuenteBusqueda`,
+    { signal }
+  );
+
+  if (result.statusCode !== 200) {
+    throw new Error(result.message || 'Error cargando fuentes de búsqueda');
+  }
+
+  return result.response.map(item => ({
+    id: String(item.nId_Fuente),
+    nombre: item.cDescripcion,
+  }));
+}

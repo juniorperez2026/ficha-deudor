@@ -14,9 +14,10 @@ interface Props {
   isActive: boolean;
   id_cliente: string;
   id_deudor: string;
+  id_usuario: string;
 }
 
-const PanelTelefonosReferenciados: React.FC<Props> = ({ isActive, id_cliente, id_deudor }) => {
+const PanelTelefonosReferenciados: React.FC<Props> = ({ isActive, id_cliente, id_deudor, id_usuario}) => {
   const {
     filteredData,
     paginatedData,
@@ -35,22 +36,22 @@ const PanelTelefonosReferenciados: React.FC<Props> = ({ isActive, id_cliente, id
     onSelectedFilterChange,
     create,
     update,
-  } = useTelefonosReferenciados(id_cliente, id_deudor);
+  } = useTelefonosReferenciados(id_cliente, id_deudor, id_usuario);
 
   const [showRegistrar, setShowRegistrar] = useState(false);
   const [showEditar, setShowEditar] = useState(false);
-  const [telefonoEditar, setTelefonoEditar] = useState<TelefonoReferenciado | null>(null);
+  const [telefonoEditarId, setTelefonoEditarId] = useState<number | null>(null);
 
   const handleEdit = (row: TelefonoReferenciado) => {
-    setTelefonoEditar(row);
+    setTelefonoEditarId(row.id);
     setShowEditar(true);
   };
 
-  const handleGuardarEdicion = async (formData: TelefonoFormData & { id: string }) => {
+  const handleGuardarEdicion = async (formData: TelefonoFormData) => {
     try {
       await update(formData.id, formData);
       setShowEditar(false);
-      setTelefonoEditar(null);
+      setTelefonoEditarId(null);
     } catch (err) {
       console.error('Error al guardar edición:', err);
     }
@@ -89,7 +90,7 @@ const PanelTelefonosReferenciados: React.FC<Props> = ({ isActive, id_cliente, id
         render: (row: TelefonoReferenciado) => (
           <Badge
             variant={row.estado === 'OPERATIVO' ? 'success' : 'neutral'}
-            style={{ padding: '3px 8px', borderRadius: '10px', fontSize: '11px' }}
+            style={{ padding: '2px 7px', borderRadius: '10px', fontSize: '9px' }}
           >
             {row.estado || '—'}
           </Badge>
@@ -101,7 +102,7 @@ const PanelTelefonosReferenciados: React.FC<Props> = ({ isActive, id_cliente, id
         key: 'contactados',
         label: 'Contactados',
         render: (row: TelefonoReferenciado) => (
-          <WrapCell weight={500}>{`${row.contactados}%`}</WrapCell>
+          <WrapCell weight={500}>{`${row.contactados}`}</WrapCell>
         ),
       },
       { key: 'noContactados', label: 'No Contactados' },
@@ -225,9 +226,9 @@ const PanelTelefonosReferenciados: React.FC<Props> = ({ isActive, id_cliente, id
         isOpen={showEditar}
         onClose={() => {
           setShowEditar(false);
-          setTelefonoEditar(null);
+          setTelefonoEditarId(null);
         }}
-        telefono={telefonoEditar}
+        telefonoId={telefonoEditarId}
         onGuardar={handleGuardarEdicion}
       />
     </>

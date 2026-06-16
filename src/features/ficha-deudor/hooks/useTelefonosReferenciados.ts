@@ -8,8 +8,9 @@ import {
   fetchTelefonoUbicaciones,
   fetchTelefonoHorarioGestion,
   fetchTelefonoFuenteBusqueda,
+  fetchTelefonoById,
 } from '../api/telefonosReferenciadosApi';
-import type { TelefonoReferenciado, TelefonoFormData, TelefonoList } from '../../../shared/types';
+import type { TelefonoReferenciado, TelefonoFormData, TelefonoList, TelefonoEditarApi } from '../../../shared/types';
 import { useApiResource } from '../../../shared/hooks/useApiResource';
 
 export interface TextFilters {
@@ -38,12 +39,13 @@ interface UseTelefonosReferenciadosReturn {
   onTextFilterChange: (columnKey: string, value: string) => void;
   onSelectedFilterChange: (columnKey: string, values: string[]) => void;
   create: (formData: TelefonoFormData) => Promise<void>;
-  update: (id: string, formData: TelefonoFormData) => Promise<void>;
+  update: (id: number, formData: TelefonoFormData) => Promise<void>;
 }
 
 export function useTelefonosReferenciados(
   id_cliente: string,
-  id_deudor: string
+  id_deudor: string,
+  id_usuario: string
 ): UseTelefonosReferenciadosReturn {
   const [allData, setAllData] = useState<TelefonoReferenciado[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -161,7 +163,7 @@ export function useTelefonosReferenciados(
   const create = useCallback(
     async (formData: TelefonoFormData) => {
       try {
-        await createTelefono(id_cliente, id_deudor, formData);
+        await createTelefono(id_cliente, id_deudor, id_usuario, formData);
         await refetch();
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Error al crear teléfono';
@@ -169,12 +171,12 @@ export function useTelefonosReferenciados(
         throw err;
       }
     },
-    [id_cliente, id_deudor, refetch]
+    [id_cliente, id_deudor, id_usuario, refetch]
   );
 
   // ─── UPDATE ───
   const update = useCallback(
-    async (id: string, formData: TelefonoFormData) => {
+    async (id: number, formData: TelefonoFormData) => {
       try {
         await updateTelefono(id_cliente, id_deudor, id, formData);
         await refetch();
@@ -207,6 +209,43 @@ export function useTelefonosReferenciados(
     create,
     update,
   };
+}
+
+export function useTelefonoById(idTelefono: number | null) {
+  const [data, setData] = useState<TelefonoEditarApi | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!idTelefono) {
+      setData(null);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    setIsLoading(true);
+    setError(null);
+
+    fetchTelefonoById(idTelefono, controller.signal)
+      .then(setData)
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          setError(err.message);
+          setData(null);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [idTelefono]);
+
+  return { data, isLoading, error };
 }
 
 export function useTelefonoResultados() {

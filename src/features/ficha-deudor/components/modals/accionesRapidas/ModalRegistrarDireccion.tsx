@@ -1,16 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { ModalFormLayout } from '../../layout/ModalFormLayout';
 import { FormGrid } from '../../../../../shared/components/ui/FormGrid';
 import { InputField, SelectField, TextAreaField } from '../../../../../shared/components/ui';
 import { useModalForm } from '../../../../../shared/hooks/ui/useModalForm';
 import type { DireccionFormData } from '../../../../../shared/types';
 import {
-  refUbicacionDirOptions,
+  useDepartamentos,
+  useProvincias,
+  useDistritos,
+  useDireccionUbicaciones,
+} from '../../../hooks/useDireccionesReferenciadas';
+import {
   llegoDeBaseOptions,
   tipoDeudorOptions,
-  getDepartamentos,
-  getProvinciasByDepartamento,
-  getDistritosByProvincia,
 } from '../../../mocks/catalogosDireccion';
 import { validateDireccionForm } from '../../../validations/direccionValidations';
 
@@ -27,14 +29,11 @@ const initialForm: DireccionFormData = {
   distrito: '',
   refUbicacion: '',
   comentario: '',
-  llegoDeBase: '',
-  tipoDeudor: '',
+  llegoDeBase: false,
+  tipoDeudor: 'TITULAR',
 };
 
 const ModalRegistrarDireccion: React.FC<Props> = ({ isOpen, onClose, onRegistrar }) => {
-  const [provincias, setProvincias] = useState<Array<{ id: string; label: string }>>([]);
-  const [distritos, setDistritos] = useState<Array<{ id: string; label: string }>>([]);
-
   const { form, errors, handleChange, handleSubmit, handleCancel } = useModalForm<DireccionFormData>({
     initialForm,
     onClose,
@@ -46,34 +45,66 @@ const ModalRegistrarDireccion: React.FC<Props> = ({ isOpen, onClose, onRegistrar
     resetOnClose: true,
   });
 
-  const departamentos = getDepartamentos();
+  // ─── Catálogos desde API ───
+  const {
+    data: departamentosData,
+    isLoading: isLoadingDepartamentos,
+    error: errorDepartamentos,
+  } = useDepartamentos();
 
+  const {
+    data: provinciasData,
+    isLoading: isLoadingProvincias,
+  } = useProvincias(form.departamento || null);
+
+  const {
+    data: distritosData,
+    isLoading: isLoadingDistritos,
+  } = useDistritos(
+    form.departamento || null,
+    form.provincia || null
+  );
+
+  const {
+    data: ubicacionesData,
+    isLoading: isLoadingUbicaciones,
+    error: errorUbicaciones,
+  } = useDireccionUbicaciones();
+
+  const departamentos = useMemo(() =>
+    departamentosData?.map(d => ({ id: d.id, label: d.nombre })) ?? [],
+    [departamentosData]
+  );
+
+  const provincias = useMemo(() =>
+    provinciasData?.map(p => ({ id: p.id, label: p.nombre })) ?? [],
+    [provinciasData]
+  );
+
+  const distritos = useMemo(() =>
+    distritosData?.map(d => ({ id: d.id, label: d.nombre })) ?? [],
+    [distritosData]
+  );
+
+  const refUbicacionOptions = useMemo(() =>
+    ubicacionesData?.map(u => ({ id: u.id, label: u.nombre })) ?? [],
+    [ubicacionesData]
+  );
+
+  // ─── Cascada: limpiar provincia/distrito cuando cambia departamento ───
   useEffect(() => {
-    if (form.departamento) {
-      const nuevasProvincias = getProvinciasByDepartamento(form.departamento);
-      setProvincias(nuevasProvincias);
-      if (form.provincia) {
-        handleChange('provincia', '');
-        handleChange('distrito', '');
-        setDistritos([]);
-      }
-    } else {
-      setProvincias([]);
-      setDistritos([]);
+    if (form.departamento && form.provincia) {
+      handleChange('provincia', '');
+      handleChange('distrito', '');
     }
   }, [form.departamento]);
 
+  // ─── Cascada: limpiar distrito cuando cambia provincia ───
   useEffect(() => {
-    if (form.departamento && form.provincia) {
-      const nuevosDistritos = getDistritosByProvincia(form.departamento, form.provincia);
-      setDistritos(nuevosDistritos);
-      if (form.distrito) {
-        handleChange('distrito', '');
-      }
-    } else {
-      setDistritos([]);
+    if (form.provincia && form.distrito) {
+      handleChange('distrito', '');
     }
-  }, [form.departamento, form.provincia]);
+  }, [form.provincia]);
 
   if (!isOpen) return null;
 
@@ -88,7 +119,7 @@ const ModalRegistrarDireccion: React.FC<Props> = ({ isOpen, onClose, onRegistrar
     >
       <InputField
         label="Dirección *"
-        layout="inline"  // ← NUEVO
+        layout="inline"
         placeholder="Ingrese dirección completa"
         value={form.direccion}
         onChange={(e) => handleChange('direccion', e.target.value)}
@@ -99,33 +130,34 @@ const ModalRegistrarDireccion: React.FC<Props> = ({ isOpen, onClose, onRegistrar
       <FormGrid columns={3}>
         <SelectField
           label="Departamento *"
-          layout="inline"  // ← NUEVO
+          layout="inline"
           options={departamentos}
           value={form.departamento}
           onChange={(v) => handleChange('departamento', v)}
-          placeholder="-- Seleccione --"
-          error={errors.departamento}
+          placeholder={isLoadingDepartamentos ? 'Cargando...' : '-- Seleccione --'}
+          error={errors.departamento || errorDepartamentos || ''}
           required
+          disabled={isLoadingDepartamentos}
         />
         <SelectField
           label="Provincia *"
-          layout="inline"  // ← NUEVO
+          layout="inline"
           options={provincias}
           value={form.provincia}
           onChange={(v) => handleChange('provincia', v)}
-          placeholder="-- Seleccione --"
-          disabled={!form.departamento}
+          placeholder={isLoadingProvincias ? 'Cargando...' : '-- Seleccione --'}
+          disabled={!form.departamento || isLoadingProvincias}
           error={errors.provincia}
           required
         />
         <SelectField
           label="Distrito *"
-          layout="inline"  // ← NUEVO
+          layout="inline"
           options={distritos}
           value={form.distrito}
           onChange={(v) => handleChange('distrito', v)}
-          placeholder="-- Seleccione --"
-          disabled={!form.provincia}
+          placeholder={isLoadingDistritos ? 'Cargando...' : '-- Seleccione --'}
+          disabled={!form.provincia || isLoadingDistritos}
           error={errors.distrito}
           required
         />
@@ -133,18 +165,18 @@ const ModalRegistrarDireccion: React.FC<Props> = ({ isOpen, onClose, onRegistrar
 
       <SelectField
         label="Referencia de Ubicación *"
-        layout="inline"  // ← NUEVO
-        options={refUbicacionDirOptions}
-        value={form.refUbicacion}
+        layout="inline"
+        options={refUbicacionOptions}
+        value={form.refUbicacion || refUbicacionOptions[0]?.id}
         onChange={(v) => handleChange('refUbicacion', v)}
-        placeholder="-- Seleccione --"
-        error={errors.refUbicacion}
-        required
+        error={errors.refUbicacion || errorUbicaciones || ''}
+        hidePlaceholder
+        disabled={isLoadingUbicaciones}
       />
 
       <TextAreaField
         label="Comentario / Des. Ref. (Opcional)"
-        layout="inline"  // ← NUEVO
+        layout="inline"
         placeholder="Ingrese comentario o descripción de referencia..."
         value={form.comentario}
         onChange={(e) => handleChange('comentario', e.target.value)}
@@ -155,23 +187,21 @@ const ModalRegistrarDireccion: React.FC<Props> = ({ isOpen, onClose, onRegistrar
       <FormGrid columns={2}>
         <SelectField
           label="Llegó de Base *"
-          layout="inline"  // ← NUEVO
+          layout="inline"
           options={llegoDeBaseOptions}
           value={form.llegoDeBase}
           onChange={(v) => handleChange('llegoDeBase', v)}
-          placeholder="-- Seleccione --"
           error={errors.llegoDeBase}
-          required
+          hidePlaceholder
         />
         <SelectField
           label="Tipo Deudor *"
-          layout="inline"  // ← NUEVO
+          layout="inline"
           options={tipoDeudorOptions}
           value={form.tipoDeudor}
           onChange={(v) => handleChange('tipoDeudor', v)}
-          placeholder="-- Seleccione --"
           error={errors.tipoDeudor}
-          required
+          hidePlaceholder
         />
       </FormGrid>
 

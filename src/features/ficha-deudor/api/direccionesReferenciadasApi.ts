@@ -6,9 +6,24 @@ import type {
   DireccionReferenciadaApi,
   DireccionFormData,
   DireccionEditFormData,
+  Departamento,
+  ApiResponseSimple,
+  DepartamentoApi,
+  Provincia,
+  ProvinciaApi,
+  Distrito,
+  DistritoApi,
+  DireccionUbicacion,
+  DireccionUbicacionApi,
+  CreateDireccionResponse,
+  CreateDireccionRequest,
+  DireccionByIdApi,
+  UpdateDireccionResponse,
+  UpdateDireccionRequest,
 } from '../../../shared/types/indexApi';
 
 const BASE_GESTION = '/v1/Gestion';
+const BASE_DIRECCION = '/v1/Direccion';
 
 // ─── GET: Todos los registros (carga masiva para filtros client-side) ───
 export async function fetchDireccionesReferenciadas(
@@ -42,7 +57,7 @@ export async function fetchDireccionesReferenciadas(
     provincia: '',
     distrito: '',
     comentario: '',
-    llegoDeBase: '',
+    llegoDeBase: false,
     nombreAval: '',
   }));
 }
@@ -51,91 +66,180 @@ export async function fetchDireccionesReferenciadas(
 export async function createDireccion(
   id_cliente: string,
   id_deudor: string,
+  id_usuario: string,        // ← AGREGAR
   data: DireccionFormData
-): Promise<DireccionReferenciada> {
-  return apiClient<DireccionReferenciada>(
-    `${BASE_GESTION}/CreateDireccion`,
+): Promise<CreateDireccionResponse> {
+  const body: CreateDireccionRequest = {
+    nId_PersDeudor: Number(id_deudor) || 0,
+    cDirecc_Nomb: data.direccion,
+    nId_PersRefUbi: Number(data.refUbicacion) || 0,
+    cDirecc_Coment: data.comentario,
+    bEstado: true,                                    // activo por defecto
+    bOrigen_Base: data.llegoDeBase,
+    cTipoCoDeudor: data.tipoDeudor,
+    dFec_Actualizacion: new Date().toISOString(),
+    nId_Cliente: Number(id_cliente) || 0,
+    nid_CalifDirecc: 0,                               // TODO: verificar si necesita valor real
+    nid_usuarioUpd: Number(id_usuario) || 0,          // ← ID del gestor logueado
+    nId_Departamento: Number(data.departamento) || 0,
+    nId_Provincia: Number(data.provincia) || 0,
+    nId_Distrito: Number(data.distrito) || 0,
+  };
+
+  const result = await apiClient<ApiResponse<CreateDireccionResponse>>(
+    `${BASE_DIRECCION}`,      // ← /v1/Direccion
     {
       method: 'POST',
-      body: {
-        nId_Persdeudor: id_cliente,
-        nId_Cartera: id_deudor,
-        ...data,
-      },
-      mock: () => {
-        const nuevo: DireccionReferenciada = {
-          id: `DIR-${Date.now()}`,
-          direccion: `${data.direccion}, ${data.distrito}`,
-          refUbicacion: data.refUbicacion,
-          tipoDeudor: data.tipoDeudor,
-          nombre: data.tipoDeudor === 'Titular'
-            ? 'S.A.A. INVERSIONES CENTENARIO'
-            : data.tipoDeudor,
-          estado: 'OPERATIVO',
-          departamento: data.departamento,
-          provincia: data.provincia,
-          distrito: data.distrito,
-          comentario: data.comentario,
-          llegoDeBase: data.llegoDeBase,
-          nombreAval: data.tipoDeudor === 'Titular' ? '—' : data.tipoDeudor,
-        };
-
-        if (!mockDireccionesReferenciadas[id_cliente]) {
-          mockDireccionesReferenciadas[id_cliente] = [];
-        }
-        mockDireccionesReferenciadas[id_cliente].push(nuevo);
-
-        return nuevo;
-      },
+      body,
     }
   );
+
+  if (result.statusCode !== 200) {
+    throw new Error(result.message || 'Error al crear dirección');
+  }
+
+  return result.response;
+}
+
+// ─── GET: Obtener dirección por ID ───
+export async function fetchDireccionById(
+  idDireccion: string,
+  signal?: AbortSignal
+): Promise<DireccionByIdApi> {
+  const result = await apiClient<ApiResponse<DireccionByIdApi>>(
+    `${BASE_DIRECCION}/${idDireccion}`,  // ← /v1/Direccion/10561756
+    { signal }
+  );
+
+  if (result.statusCode !== 200) {
+    throw new Error(result.message || 'Error cargando dirección para editar');
+  }
+
+  return result.response;
 }
 
 // ─── PUT: Actualizar dirección existente ───
 export async function updateDireccion(
   id_cliente: string,
   id_deudor: string,
+  id_usuario: string,
   id_direccion: string,
   data: DireccionEditFormData
-): Promise<DireccionReferenciada> {
-  return apiClient<DireccionReferenciada>(
-    `${BASE_GESTION}/UpdateDireccion/${id_direccion}`,
+): Promise<UpdateDireccionResponse> {
+  const body: UpdateDireccionRequest = {
+    nId_PersDirecc: Number(id_direccion),
+    nId_PersDeudor: Number(id_deudor) || 0,
+    cDirecc_Nomb: data.direccion,
+    nId_PersRefUbi: Number(data.refUbicacion) || 0,
+    cDirecc_Coment: data.comentario,
+    bEstado: data.estado,           // ← boolean directo del formulario
+    bOrigen_Base: data.llegoDeBase, // ← boolean directo del formulario
+    cTipoCoDeudor: data.tipoDeudor,
+    dFec_Actualizacion: new Date().toISOString(),
+    nId_Cliente: Number(id_cliente) || 0,
+    nid_CalifDirecc: 0,             // TODO: verificar si necesita valor real
+    nid_usuarioUpd: Number(id_usuario) || 0,
+    nId_Departamento: Number(data.departamento) || 0,
+    nId_Provincia: Number(data.provincia) || 0,
+    nId_Distrito: Number(data.distrito) || 0,
+  };
+
+  const result = await apiClient<ApiResponse<UpdateDireccionResponse>>(
+    `${BASE_DIRECCION}`,         // ← /v1/Direccion
     {
       method: 'PUT',
-      body: {
-        nId_Persdeudor: id_cliente,
-        nId_Cartera: id_deudor,
-        idDireccion: id_direccion,
-        ...data,
-      },
-      mock: () => {
-        const lista = mockDireccionesReferenciadas[id_cliente] || [];
-        const index = lista.findIndex((d) => d.id === id_direccion);
+      body,
+    }
+  );
 
-        if (index === -1) {
-          throw new Error(`Dirección ${id_direccion} no encontrada`);
-        }
+  if (result.statusCode !== 200) {
+    throw new Error(result.message || 'Error al actualizar dirección');
+  }
 
-        const actualizado: DireccionReferenciada = {
-          ...lista[index],
-          direccion: `${data.direccion}, ${data.distrito}`,
-          departamento: data.departamento,
-          provincia: data.provincia,
-          distrito: data.distrito,
-          refUbicacion: data.refUbicacion,
-          comentario: data.comentario,
-          llegoDeBase: data.llegoDeBase,
-          tipoDeudor: data.tipoDeudor,
-          nombreAval: data.nombreAval,
-          estado: data.estado,
-          nombre: data.tipoDeudor === 'Titular'
-            ? 'S.A.A. INVERSIONES CENTENARIO'
-            : data.nombreAval || data.tipoDeudor,
-        };
+  return result.response;
+}
 
-        lista[index] = actualizado;
-        return actualizado;
+export async function fetchDepartamentos(signal?: AbortSignal): Promise<Departamento[]> {
+  const result = await apiClient<ApiResponseSimple<DepartamentoApi[]>>(
+    `${BASE_DIRECCION}/GetDireccionDepartamentos`,
+    { signal }
+  );
+
+  if (result.statusCode !== 200) {
+    throw new Error(result.message || 'Error cargando departamentos');
+  }
+
+  return result.response.map(item => ({
+    id: String(item.nId_Departamento),
+    nombre: item.cNombre_Departamento,
+  }));
+}
+
+export async function fetchProvincias(
+  idDepartamento: string,
+  signal?: AbortSignal
+): Promise<Provincia[]> {
+  const result = await apiClient<ApiResponseSimple<ProvinciaApi[]>>(
+    `${BASE_DIRECCION}/GetDireccionProvincias`,
+    {
+      signal,
+      headers: {
+        'nId_Departamento': idDepartamento,  // ← header, no query param
       },
     }
   );
+
+  if (result.statusCode !== 200) {
+    throw new Error(result.message || 'Error cargando provincias');
+  }
+
+  return result.response.map(item => ({
+    id: String(item.nId_Provincia),
+    nombre: item.cNombre_Provincia,
+  }));
+}
+
+export async function fetchDistritos(
+  idDepartamento: string,
+  idProvincia: string,
+  signal?: AbortSignal
+): Promise<Distrito[]> {
+  const params = new URLSearchParams({
+    nId_Provincia: idProvincia,
+  });
+
+  const result = await apiClient<ApiResponseSimple<DistritoApi[]>>(
+    `${BASE_DIRECCION}/GetDireccionDistritos?${params.toString()}`,
+    {
+      signal,
+      headers: {
+        'nId_Departamento': idDepartamento,
+      },
+    }
+  );
+
+  if (result.statusCode !== 200) {
+    throw new Error(result.message || 'Error cargando distritos');
+  }
+
+  return result.response.map(item => ({
+    id: String(item.nId_Distrito),
+    nombre: item.cNombre_Distrito,
+  }));
+}
+
+export async function fetchDireccionUbicaciones(signal?: AbortSignal): Promise<DireccionUbicacion[]> {
+  const result = await apiClient<ApiResponseSimple<DireccionUbicacionApi[]>>(
+    `${BASE_DIRECCION}/GetDireccionUbicaciones`,
+    { signal }
+  );
+
+  if (result.statusCode !== 200) {
+    throw new Error(result.message || 'Error cargando ubicaciones');
+  }
+
+  return result.response.map(item => ({
+    id: String(item.nId_PersRefUbi),
+    nombre: item.cNombre_PersRefUbi,
+  }));
 }

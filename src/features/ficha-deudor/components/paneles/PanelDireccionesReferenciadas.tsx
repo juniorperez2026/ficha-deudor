@@ -6,24 +6,22 @@ import { ActionButton } from '../../../../shared/components/ui';
 import Paginacion from '../../../../shared/components/ui/Paginacion';
 import { WrapCell } from '../../../../shared/components/ui/WrapCell';
 import { PanelLayout } from './PanelLayout';
-import { useDireccionesReferenciadas } from '../../hooks/useDireccionesReferenciadas';
+import { useDireccionById, useDireccionesReferenciadas } from '../../hooks/useDireccionesReferenciadas';
 import type { Column, DireccionReferenciada, DireccionEditFormData, DireccionFormData } from '../../../../shared/types';
 
 interface Props {
   isActive: boolean;
   id_cliente: string;
   id_deudor: string;
+  id_usuario: string;
 }
 
 const ESTADOS_BADGE: Record<string, string> = {
-  OPERATIVO: 'badge-s',
+  ACTIVO: 'badge-s',
   INACTIVO: 'badge-d',
-  PENDIENTE: 'badge-w',
-  VERIFICAR: 'badge-info',
-  ELIMINADO: 'badge-n',
 };
 
-const PanelDireccionesReferenciadas: React.FC<Props> = ({ isActive, id_cliente, id_deudor }) => {
+const PanelDireccionesReferenciadas: React.FC<Props> = ({ isActive, id_cliente, id_deudor, id_usuario }) => {
   const {
     filteredData,
     paginatedData,
@@ -42,22 +40,24 @@ const PanelDireccionesReferenciadas: React.FC<Props> = ({ isActive, id_cliente, 
     onSelectedFilterChange,
     create,
     update,
-  } = useDireccionesReferenciadas(id_cliente, id_deudor);
+  } = useDireccionesReferenciadas(id_cliente, id_deudor, id_usuario);
 
   const [showRegistrar, setShowRegistrar] = useState(false);
   const [showEditar, setShowEditar] = useState(false);
-  const [direccionEditar, setDireccionEditar] = useState<DireccionReferenciada | null>(null);
+  const [direccionEditarId, setDireccionEditarId] = useState<string | null>(null);  // ← CORREGIDO: era direccionEditar
+
+  const { data: direccionByIdData } = useDireccionById(direccionEditarId);
 
   const handleEdit = (row: DireccionReferenciada) => {
-    setDireccionEditar(row);
+    setDireccionEditarId(row.id); 
     setShowEditar(true);
   };
 
-  const handleGuardarEdicion = async (formData: DireccionEditFormData & { id: string }) => {
+  const handleGuardarEdicion = async (formData: DireccionEditFormData) => {
     try {
       await update(formData.id, formData);
       setShowEditar(false);
-      setDireccionEditar(null);
+      setDireccionEditarId(null);  // ← CORREGIDO
     } catch (err) {
       console.error('Error al guardar edición:', err);
     }
@@ -220,9 +220,10 @@ const PanelDireccionesReferenciadas: React.FC<Props> = ({ isActive, id_cliente, 
         isOpen={showEditar}
         onClose={() => {
           setShowEditar(false);
-          setDireccionEditar(null);
+          setDireccionEditarId(null);  // ← CORREGIDO
         }}
-        direccion={direccionEditar}
+        direccionId={direccionEditarId}        // ← CORREGIDO: pasar ID
+        direccionData={direccionByIdData}      // ← pasar datos del GET
         onGuardar={handleGuardarEdicion}
       />
     </>
