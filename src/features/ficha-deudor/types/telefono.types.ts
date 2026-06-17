@@ -76,7 +76,7 @@ export interface TelefonoReferenciado {
 }
 
 export interface TelefonoFormData {
-  id:number;
+  id: number;
   numero: string;
   anexo: string;
   resultado: string;
@@ -88,6 +88,8 @@ export interface TelefonoFormData {
   fuenteBusqueda: string;
   referencia: number;
   reclamoIndecopi: boolean;
+  bEstado: boolean;
+  dFecCarga_PersTelef: string;
 }
 
 export interface TelefonoList {
@@ -159,19 +161,4 @@ export interface CreateTelefonoResponse {
   nId_PersTelef: number;
   nId_PersDeudor: number;
   nTelef_Nro: string;
-}
-
-export interface TelefonoEditFormData {
-  id: number;
-  numero: string;
-  anexo: string;
-  resultado: string;
-  operadorTelefonico: string;
-  ubicacion: string;
-  prioridad: string;
-  horarioGestion: string;
-  comentario: string;
-  fuenteBusqueda: string;
-  referencia: number;
-  reclamoIndecopi: boolean;
 }

@@ -32,6 +32,8 @@ const initialForm: TelefonoFormData = {
   fuenteBusqueda: '',
   referencia: 0,
   reclamoIndecopi: false,
+  bEstado: false,
+  dFecCarga_PersTelef: ''
 };
 
 const ModalRegistrarTelefono: React.FC<Props> = ({ isOpen, onClose, onRegistrar }) => {

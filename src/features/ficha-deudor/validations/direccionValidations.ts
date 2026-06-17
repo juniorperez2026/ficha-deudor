@@ -35,6 +35,8 @@ export const validateDireccionForm = (data: DireccionFormData): Record<string, s
 export const validateDireccionEditForm = (data: DireccionEditFormData): Record<string, string> => {
   const errors: Record<string, string> = {};
   
+  console.log('Validando:', data);
+
   // Validaciones obligatorias
   if (!data.direccion.trim()) {
     errors.direccion = 'La dirección es obligatoria';
@@ -60,6 +62,8 @@ export const validateDireccionEditForm = (data: DireccionEditFormData): Record<s
   if (data.comentario && data.comentario.length > 500) {
     errors.comentario = 'El comentario no puede exceder 500 caracteres';
   }
+  
+  console.log('Errores:', errors);
   
   return errors;
 };

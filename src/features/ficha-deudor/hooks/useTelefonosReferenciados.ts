@@ -178,15 +178,15 @@ export function useTelefonosReferenciados(
   const update = useCallback(
     async (id: number, formData: TelefonoFormData) => {
       try {
-        await updateTelefono(id_cliente, id_deudor, id, formData);
-        await refetch();
+        await updateTelefono(id_cliente, id_deudor, id_usuario, id, formData);
+        await refetch(); // ← Esto trae los datos actualizados del listado
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Error al actualizar teléfono';
         setError(msg);
         throw err;
       }
     },
-    [id_cliente, id_deudor, refetch]
+    [id_cliente, id_deudor, id_usuario, refetch]
   );
 
   return {
@@ -209,6 +209,20 @@ export function useTelefonosReferenciados(
     create,
     update,
   };
+}
+
+export function parseApiDate(dateStr: string): string {
+  if (!dateStr) return new Date().toISOString();
+  
+  // Si ya es ISO, devolverlo
+  if (dateStr.includes('T')) return dateStr;
+  
+  // Convertir "29 May 2017" → Date → ISO
+  const parsed = new Date(dateStr);
+  if (isNaN(parsed.getTime())) {
+    return new Date().toISOString(); // fallback
+  }
+  return parsed.toISOString();
 }
 
 export function useTelefonoById(idTelefono: number | null) {

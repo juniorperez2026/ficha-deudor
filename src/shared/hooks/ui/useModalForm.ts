@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface UseModalFormOptions<TForm, TEntity = object> {
   initialForm: TForm;
@@ -33,22 +33,53 @@ export function useModalForm<TForm extends object, TEntity = object>({
   resetOnClose = true,
   validate,
 }: UseModalFormOptions<TForm, TEntity>): UseModalFormResult<TForm> {
-  const [form, setForm] = useState<TForm>(initialForm);
-  const [initialSnapshot, setInitialSnapshot] = useState<string>('');
+  const initialFormRef = useRef(initialForm);
+  initialFormRef.current = initialForm;
+
+  const [form, setForm] = useState<TForm>(() => {
+    if (entity && mapEntityToForm) {
+      return mapEntityToForm(entity);
+    }
+    return initialForm;
+  });
+
+  const [initialSnapshot, setInitialSnapshot] = useState<string>(() => {
+    if (entity && mapEntityToForm) {
+      return JSON.stringify(mapEntityToForm(entity));
+    }
+    return JSON.stringify(initialForm);
+  });
+
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // ✅ REF: guarda la última entidad procesada por CONTENIDO
+  const lastEntityKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (entity && mapEntityToForm) {
-      const mapped = mapEntityToForm(entity);
-      setForm(mapped);
-      setInitialSnapshot(JSON.stringify(mapped));
-    } else {
-      setForm(initialForm);
-      setInitialSnapshot(JSON.stringify(initialForm));
+    // Si no hay entity o no hay mapper, resetear si es necesario
+    if (!entity || !mapEntityToForm) {
+      if (lastEntityKeyRef.current !== null) {
+        setForm(initialFormRef.current);
+        setInitialSnapshot(JSON.stringify(initialFormRef.current));
+        lastEntityKeyRef.current = null;
+      }
+      return;
     }
 
+    // Generar clave de la entidad actual por su contenido
+    const currentKey = JSON.stringify(entity);
+
+    // ✅ CLAVE: Si es exactamente la misma entidad que ya procesamos, NO hacer nada
+    if (currentKey === lastEntityKeyRef.current) {
+      return;
+    }
+
+    lastEntityKeyRef.current = currentKey;
+    const mapped = mapEntityToForm(entity);
+    setForm(mapped);
+    setInitialSnapshot(JSON.stringify(mapped));
     setErrors({});
-  }, [entity, mapEntityToForm, initialForm]);
+  }, [entity, mapEntityToForm]);
 
   const handleChange = useCallback(
     <K extends keyof TForm>(field: K, value: TForm[K]) => {
@@ -57,38 +88,40 @@ export function useModalForm<TForm extends object, TEntity = object>({
         [field]: value,
       }));
 
-      if (errors[field as string]) {
-        setErrors(prev => {
-          const newErrors = { ...prev };
-          delete newErrors[field as string];
-          return newErrors;
-        });
-      }
+      setErrors(prev => {
+        if (!prev[field as string]) return prev;
+        const newErrors = { ...prev };
+        delete newErrors[field as string];
+        return newErrors;
+      });
     },
-    [errors]
+    []
   );
 
   const resetForm = useCallback(() => {
-    setForm(initialForm);
+    if (entity && mapEntityToForm) {
+      const mapped = mapEntityToForm(entity);
+      setForm(mapped);
+      setInitialSnapshot(JSON.stringify(mapped));
+    } else {
+      setForm(initialFormRef.current);
+      setInitialSnapshot(JSON.stringify(initialFormRef.current));
+    }
     setErrors({});
-  }, [initialForm]);
+  }, [entity, mapEntityToForm]);
 
   const handleSubmit = useCallback(() => {
     if (validate) {
       const validationErrors = validate(form);
-
       if (Object.keys(validationErrors).length > 0) {
         setErrors(validationErrors);
         return;
       }
     }
-
     onSubmit(form);
-
     if (resetOnClose) {
       resetForm();
     }
-
     onClose();
   }, [form, onSubmit, onClose, resetOnClose, resetForm, validate]);
 
@@ -96,7 +129,6 @@ export function useModalForm<TForm extends object, TEntity = object>({
     if (resetOnClose) {
       resetForm();
     }
-
     onClose();
   }, [onClose, resetOnClose, resetForm]);
 

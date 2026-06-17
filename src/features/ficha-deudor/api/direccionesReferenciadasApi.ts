@@ -1,5 +1,4 @@
 import { apiClient } from '../../../shared/api/apiClient';
-import { mockDireccionesReferenciadas } from '../mocks/mocks/direccionesReferenciadas';
 import type {
   ApiResponse,
   DireccionReferenciada,
@@ -79,7 +78,7 @@ export async function createDireccion(
     cTipoCoDeudor: data.tipoDeudor,
     dFec_Actualizacion: new Date().toISOString(),
     nId_Cliente: Number(id_cliente) || 0,
-    nid_CalifDirecc: 0,                               // TODO: verificar si necesita valor real
+    nid_CalifDirecc: null,                               // TODO: verificar si necesita valor real
     nid_usuarioUpd: Number(id_usuario) || 0,          // ← ID del gestor logueado
     nId_Departamento: Number(data.departamento) || 0,
     nId_Provincia: Number(data.provincia) || 0,
@@ -126,31 +125,44 @@ export async function updateDireccion(
   id_direccion: string,
   data: DireccionEditFormData
 ): Promise<UpdateDireccionResponse> {
+  
+  // ← DEBUG: Loguea todo lo que recibe
+  console.log('🔍 updateDireccion recibe:', {
+    id_cliente,
+    id_deudor,
+    id_usuario,
+    id_direccion,
+    data,
+  });
+
   const body: UpdateDireccionRequest = {
     nId_PersDirecc: Number(id_direccion),
     nId_PersDeudor: Number(id_deudor) || 0,
     cDirecc_Nomb: data.direccion,
     nId_PersRefUbi: Number(data.refUbicacion) || 0,
     cDirecc_Coment: data.comentario,
-    bEstado: data.estado,           // ← boolean directo del formulario
-    bOrigen_Base: data.llegoDeBase, // ← boolean directo del formulario
+    bEstado: data.estado,
+    bOrigen_Base: data.llegoDeBase,
     cTipoCoDeudor: data.tipoDeudor,
     dFec_Actualizacion: new Date().toISOString(),
     nId_Cliente: Number(id_cliente) || 0,
-    nid_CalifDirecc: 0,             // TODO: verificar si necesita valor real
+    nid_CalifDirecc: null,
     nid_usuarioUpd: Number(id_usuario) || 0,
     nId_Departamento: Number(data.departamento) || 0,
     nId_Provincia: Number(data.provincia) || 0,
     nId_Distrito: Number(data.distrito) || 0,
   };
 
+  // ← DEBUG: Loguea el body antes de enviar
+  console.log('🚀 PUT body:', JSON.stringify(body, null, 2));
+
   const result = await apiClient<ApiResponse<UpdateDireccionResponse>>(
-    `${BASE_DIRECCION}`,         // ← /v1/Direccion
-    {
-      method: 'PUT',
-      body,
-    }
+    `${BASE_DIRECCION}`,
+    { method: 'PUT', body }
   );
+
+  // ← DEBUG: Loguea la respuesta
+  console.log('📥 Response:', result);
 
   if (result.statusCode !== 200) {
     throw new Error(result.message || 'Error al actualizar dirección');

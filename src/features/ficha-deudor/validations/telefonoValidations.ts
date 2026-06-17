@@ -1,6 +1,5 @@
 import type {
   TelefonoFormData,
-  TelefonoEditFormData,
 } from '../../../shared/types';
 
 // Validación para registrar teléfono
@@ -44,7 +43,7 @@ export const validateTelefonoForm = (
 
 // Validación para editar teléfono
 export const validateTelefonoEditForm = (
-  data: TelefonoEditFormData
+  data: TelefonoFormData
 ): Record<string, string> => {
   const errors: Record<string, string> = {};
 

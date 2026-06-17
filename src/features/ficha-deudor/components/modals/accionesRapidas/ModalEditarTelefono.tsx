@@ -11,7 +11,7 @@ import {
   useTelefonoFuenteBusqueda,
   useTelefonoById,
 } from '../../../hooks/useTelefonosReferenciados';
-import type { TelefonoFormData, TelefonoEditarApi, TelefonoEditFormData } from '../../../../../shared/types';
+import type { TelefonoFormData, TelefonoEditarApi } from '../../../../../shared/types';
 import {
   prioridadesOptions,
   referenciasOptions,
@@ -22,11 +22,12 @@ import { validateTelefonoEditForm } from '../../../validations/telefonoValidatio
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  telefonoId: number | null; // ← CAMBIO: ahora recibe el ID, no el objeto del listado
-  onGuardar?: (data: TelefonoFormData) => void; // ← TelefonoFormData ya incluye id
+  telefonoId: number | null;
+  onGuardar?: (data: TelefonoFormData) => void;
 }
 
-const initialForm: TelefonoFormData = {
+// ✅ MOVIDO FUERA DEL COMPONENTE: misma referencia siempre
+const INITIAL_FORM: TelefonoFormData = {
   id: 0,
   numero: '',
   anexo: '',
@@ -39,44 +40,46 @@ const initialForm: TelefonoFormData = {
   fuenteBusqueda: '',
   referencia: 0,
   reclamoIndecopi: false,
+  bEstado: false,
+  dFecCarga_PersTelef: ''
 };
 
-// ← NUEVO: Mapeo desde GetTelefonoByIdTelefono (usa IDs numéricos de catálogos)
-const mapApiToFormData = (api: TelefonoEditarApi): TelefonoEditFormData  => ({
+const mapApiToFormData = (api: TelefonoEditarApi): TelefonoFormData => ({
   id: api.nId_PersTelef,
-  numero: api.nTelef_Nro,
-  anexo: api.nTelef_Anexo,
-  resultado: String(api.nId_PersTelefOpe),           // ← ID del catálogo (no el nombre)
-  operadorTelefonico: String(api.nId_OperadorTelefonico),
-  ubicacion: String(api.nId_PersRefUbi),              // ← ID del catálogo (no el nombre)
-  prioridad: String(api.nTelef_Prioridad),
-  horarioGestion: String(api.nId_PersDeudorGestionHrs), // ← ID del catálogo (no el nombre)
-  comentario: api.cTelef_Coment,                       // ← ¡AHORA SÍ trae el comentario real!
-  fuenteBusqueda: String(api.nId_Fuente),              // ← ID del catálogo (no el nombre)
-  referencia: api.nreferencia,
-  reclamoIndecopi: api.bReclamo
+  numero: api.nTelef_Nro ?? '',
+  anexo: api.nTelef_Anexo ?? '',
+  resultado: api.nId_PersTelefOpe ? String(api.nId_PersTelefOpe) : '',
+  operadorTelefonico: api.nId_OperadorTelefonico ? String(api.nId_OperadorTelefonico) : '',
+  ubicacion: api.nId_PersRefUbi ? String(api.nId_PersRefUbi) : '',
+  prioridad: api.nTelef_Prioridad ? String(api.nTelef_Prioridad) : '',
+  horarioGestion: api.nId_PersDeudorGestionHrs ? String(api.nId_PersDeudorGestionHrs) : '',
+  comentario: api.cTelef_Coment ?? '',
+  fuenteBusqueda: api.nId_Fuente ? String(api.nId_Fuente) : '',
+  referencia: api.nreferencia ?? 0,
+  reclamoIndecopi: api.bReclamo ?? false,
+  bEstado: api.bEstado ?? false,
+  dFecCarga_PersTelef: api.dFecCarga_PersTelef ?? '',
 });
 
 const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefonoId, onGuardar }) => {
-  // ← NUEVO: Fetch datos reales del teléfono para editar
   const {
     data: telefonoApi,
     isLoading: isLoadingTelefono,
     error: errorTelefono,
   } = useTelefonoById(telefonoId);
 
-  const { form, errors, handleChange, handleSubmit, handleCancel } = useModalForm<TelefonoEditFormData, TelefonoEditarApi>({
-    initialForm,
-    entity: telefonoApi,              // ← AHORA: objeto real de la API de edición
-    mapEntityToForm: mapApiToFormData, // ← AHORA: mapeo con IDs correctos
+  const { form, errors, handleChange, handleSubmit, handleCancel } = useModalForm<TelefonoFormData, TelefonoEditarApi>({
+    initialForm: INITIAL_FORM,
+    entity: telefonoApi,
+    mapEntityToForm: mapApiToFormData,
     onClose,
     onSubmit: (data) => {
-      onGuardar?.(data); // ← data.id ya viene incluido desde el mapeo
+      onGuardar?.(data);
     },
     validate: validateTelefonoEditForm,
     resetOnClose: true,
   });
-  
+
   // ─── Catálogos ───
   const {
     data: resultadosData,
@@ -133,10 +136,8 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefonoId, onG
     label: f.nombre,
   })) ?? [];
 
-  // ← CORREGIDO: Ambas condiciones deben cumplirse
   if (!isOpen || !telefonoId) return null;
 
-  // ← NUEVO: Loading state mientras trae los datos del teléfono
   if (isLoadingTelefono) {
     return (
       <ModalFormLayout
@@ -152,7 +153,6 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefonoId, onG
     );
   }
 
-  // ← NUEVO: Error state si falló la carga
   if (errorTelefono) {
     return (
       <ModalFormLayout

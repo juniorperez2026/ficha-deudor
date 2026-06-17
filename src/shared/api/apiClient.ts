@@ -63,10 +63,20 @@ export async function apiClient<T>(
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => undefined);
+    const errorText = await response.text(); // ← captura como texto primero
+    console.error('📥 ERROR RAW RESPONSE:', errorText);
+    console.error('📥 ERROR STATUS:', response.status);
+    
+    // Intenta parsear como JSON si es posible
+    let errorData;
+    try {
+      errorData = JSON.parse(errorText);
+    } catch {
+      errorData = errorText;
+    }
 
     throw new ApiError(
-      "Ocurrió un error al procesar la solicitud.",
+      errorData?.message || errorData?.messageUser || "Ocurrió un error al procesar la solicitud.",
       response.status,
       errorData,
     );

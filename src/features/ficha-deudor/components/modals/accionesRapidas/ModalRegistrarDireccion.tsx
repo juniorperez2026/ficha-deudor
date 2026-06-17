@@ -22,7 +22,8 @@ interface Props {
   onRegistrar?: (data: DireccionFormData) => void;
 }
 
-const initialForm: DireccionFormData = {
+// ✅ MOVIDO FUERA DEL COMPONENTE: misma referencia siempre
+const INITIAL_FORM: DireccionFormData = {
   direccion: '',
   departamento: '',
   provincia: '',
@@ -35,7 +36,7 @@ const initialForm: DireccionFormData = {
 
 const ModalRegistrarDireccion: React.FC<Props> = ({ isOpen, onClose, onRegistrar }) => {
   const { form, errors, handleChange, handleSubmit, handleCancel } = useModalForm<DireccionFormData>({
-    initialForm,
+    initialForm: INITIAL_FORM,
     onClose,
     onSubmit: (data) => {
       console.log('Registrando dirección:', data);
@@ -118,7 +119,7 @@ const ModalRegistrarDireccion: React.FC<Props> = ({ isOpen, onClose, onRegistrar
       minHeight="auto"
     >
       <InputField
-        label="Dirección *"
+        label="Dirección"
         layout="inline"
         placeholder="Ingrese dirección completa"
         value={form.direccion}
@@ -129,7 +130,7 @@ const ModalRegistrarDireccion: React.FC<Props> = ({ isOpen, onClose, onRegistrar
 
       <FormGrid columns={3}>
         <SelectField
-          label="Departamento *"
+          label="Departamento"
           layout="inline"
           options={departamentos}
           value={form.departamento}
@@ -140,7 +141,7 @@ const ModalRegistrarDireccion: React.FC<Props> = ({ isOpen, onClose, onRegistrar
           disabled={isLoadingDepartamentos}
         />
         <SelectField
-          label="Provincia *"
+          label="Provincia"
           layout="inline"
           options={provincias}
           value={form.provincia}
@@ -151,7 +152,7 @@ const ModalRegistrarDireccion: React.FC<Props> = ({ isOpen, onClose, onRegistrar
           required
         />
         <SelectField
-          label="Distrito *"
+          label="Distrito"
           layout="inline"
           options={distritos}
           value={form.distrito}
@@ -164,13 +165,12 @@ const ModalRegistrarDireccion: React.FC<Props> = ({ isOpen, onClose, onRegistrar
       </FormGrid>
 
       <SelectField
-        label="Referencia de Ubicación *"
+        label="Referencia de Ubicación"
         layout="inline"
         options={refUbicacionOptions}
         value={form.refUbicacion || refUbicacionOptions[0]?.id}
         onChange={(v) => handleChange('refUbicacion', v)}
         error={errors.refUbicacion || errorUbicaciones || ''}
-        hidePlaceholder
         disabled={isLoadingUbicaciones}
       />
 
@@ -186,7 +186,7 @@ const ModalRegistrarDireccion: React.FC<Props> = ({ isOpen, onClose, onRegistrar
 
       <FormGrid columns={2}>
         <SelectField
-          label="Llegó de Base *"
+          label="Llegó de Base"
           layout="inline"
           options={llegoDeBaseOptions}
           value={form.llegoDeBase}
@@ -195,7 +195,7 @@ const ModalRegistrarDireccion: React.FC<Props> = ({ isOpen, onClose, onRegistrar
           hidePlaceholder
         />
         <SelectField
-          label="Tipo Deudor *"
+          label="Tipo Deudor"
           layout="inline"
           options={tipoDeudorOptions}
           value={form.tipoDeudor}

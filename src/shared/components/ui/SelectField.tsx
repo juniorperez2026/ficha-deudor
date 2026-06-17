@@ -32,8 +32,16 @@ export const SelectField = <T extends string | number | boolean = string>({
       className={`form-select ${layout === 'inline' ? 'form-input--inline-field' : ''} ${error ? 'form-select--error' : ''}`}
       value={String(value)}
       onChange={(e) => {
+        const rawValue = e.target.value;
+
+        // ✅ FIX DEFINITIVO: Si seleccionó placeholder (vacío), enviar string vacío
+        if (rawValue === '') {
+          onChange('' as T);
+          return;
+        }
+
         const selected = options.find(
-          (opt) => String(opt.id) === e.target.value
+          (opt) => String(opt.id) === rawValue
         );
 
         if (selected) {

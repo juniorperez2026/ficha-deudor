@@ -8,7 +8,7 @@ const usuariosMock: Record<string, { usuario: Usuario; password: string }> = {
   'admin': {
     password: 'admin123',
     usuario: {
-      id_usuario: 'USR001',
+      id_usuario: '16068',
       nombre: 'Carlos',
       apellido: 'Ramírez',
       username: 'admin',

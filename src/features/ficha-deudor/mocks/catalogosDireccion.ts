@@ -6,8 +6,8 @@ export const llegoDeBaseOptions: SelectOption<boolean>[] = [
 ];
 
 export const tipoDeudorOptions: SelectOption[] = [
-  { id: 'AVAL', label: 'AVAL' },
-  { id: 'TITULAR', label: 'TITULAR' }
+  { id: 'TITULAR', label: 'TITULAR' },
+  { id: 'AVAL', label: 'AVAL' }
 ];
 
 export const estadosDireccionOptions: SelectOption<boolean>[] = [

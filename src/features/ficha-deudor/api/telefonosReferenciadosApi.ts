@@ -1,5 +1,4 @@
 import { apiClient } from '../../../shared/api/apiClient';
-import { mockTelefonosReferenciados } from '../mocks/mocks/telefonosReferenciados';
 import type { TelefonoReferenciado, TelefonoFormData, ApiResponse, 
               TelefonoReferenciadoApi, ApiResponseSimple, TelefonoList, 
               TelefonoResultadoApi, TelefonoOperadorApi,
@@ -8,6 +7,7 @@ import type { TelefonoReferenciado, TelefonoFormData, ApiResponse,
               TelefonoEditarApi,
               CreateTelefonoResponse,
               CreateTelefonoRequest} from '../../../shared/types/indexApi';
+import { parseApiDate } from '../hooks/useTelefonosReferenciados';
 
 const BASE_GESTION = '/v1/Gestion';
 const BASE_TELEFONO = '/v1/Telefono';
@@ -92,7 +92,7 @@ export async function createTelefono(
     nreferencia: Number(data.referencia) || 0,
     nid_usuarioupd: Number(id_usuario) || 0,
     nId_OperadorTelefonico: Number(data.operadorTelefonico) || 0,
-    bEstado: true, 
+    bEstado: data.bEstado || true, 
     dFecUlt_PerstelefOpe: new Date().toISOString(),
     dFecCarga_PersTelef: new Date().toISOString(),
     bReclamo: data.reclamoIndecopi,
@@ -113,51 +113,54 @@ export async function createTelefono(
   return result.response;
 }
 
+
 // ─── PUT: Actualizar teléfono existente ───
 export async function updateTelefono(
-    id_cliente: string,
-    id_deudor: string,
-    id_telefono: number,
-    data: TelefonoFormData
-  ): Promise<TelefonoReferenciado> {
-    return apiClient<TelefonoReferenciado>(
-      `${BASE_GESTION}/UpdateTelefono/${id_telefono}`,
-      {
-        method: 'PUT',
-        body: {
-          nId_Cliente: id_cliente,
-          nId_Persdeudor: id_deudor,
-          idTelefono: id_telefono,
-          ...data,
-        },
-        mock: () => {
-          const lista = mockTelefonosReferenciados[id_deudor] || [];
-          const index = lista.findIndex((t) => t.id === id_telefono);
+  id_cliente: string,
+  id_deudor: string,
+  id_usuario: string,
+  id_telefono: number,
+  data: TelefonoFormData
+): Promise<CreateTelefonoResponse> {
 
-          if (index === -1) {
-            throw new Error(`Teléfono ${id_telefono} no encontrado`);
-          }
+  const [nTelef_Pre, nTelef_Nro] = data.numero.includes('-')
+    ? data.numero.split('-')
+    : ['', data.numero];
 
-          const actualizado: TelefonoReferenciado = {
-            ...lista[index],
-            numero: data.numero,
-            anexo: data.anexo,
-            estado: data.resultado,
-            operadorTelefonico: data.operadorTelefonico,
-            refUbicacion: data.ubicacion,
-            prioridad: parseInt(data.prioridad, 10) || 0,
-            horario: data.horarioGestion,
-            fuente: data.fuenteBusqueda,
-            referencia: data.referencia,
-            reclamoIndecopi: data.reclamoIndecopi,
-          };
+  const body: CreateTelefonoRequest = {
+    nId_PersTelef: id_telefono,
+    nId_PersDeudor: Number(id_deudor) || 0,
+    nTelef_Pre,
+    nTelef_Nro,
+    nTelef_Anexo: data.anexo || '',
+    nId_PersRefUbi: Number(data.ubicacion) || 0,
+    nTelef_Prioridad: parseInt(data.prioridad, 10) || 0,
+    cTelef_Coment: data.comentario || '',
+    nId_PersDeudorGestionHrs: Number(data.horarioGestion) || 0,
+    nId_PersTelefOpe: Number(data.resultado) || 0,
+    nId_Fuente: Number(data.fuenteBusqueda) || 0,
+    nreferencia: Number(data.referencia) || 0,
+    nid_usuarioupd: Number(id_usuario) || 0,
+    nId_OperadorTelefonico: Number(data.operadorTelefonico) || 0,
+    bEstado: data.bEstado,
+    dFecUlt_PerstelefOpe: new Date().toISOString(),     // ← fecha actual en ISO ✅
+    dFecCarga_PersTelef: parseApiDate(data.dFecCarga_PersTelef), // ← convertir a ISO ✅
+    bReclamo: data.reclamoIndecopi,
+  };
 
-          lista[index] = actualizado;
-          return actualizado;
-        },
-      }
-    );
+  console.log('🚀 BODY ENVIADO AL PUT:', JSON.stringify(body, null, 2));
+
+  const result = await apiClient<ApiResponse<CreateTelefonoResponse>>(
+    `${BASE_TELEFONO}`,
+    { method: 'PUT', body }
+  );
+
+  if (result.statusCode !== 200) {
+    throw new Error(result.message || 'Error al actualizar teléfono');
   }
+
+  return result.response;
+}
 
 export async function fetchTelefonoResultados(signal?: AbortSignal): Promise<TelefonoList[]> {
   const result = await apiClient<ApiResponseSimple<TelefonoResultadoApi[]>>(

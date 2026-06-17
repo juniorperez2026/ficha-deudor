@@ -103,7 +103,7 @@ export interface CreateDireccionRequest {
   cTipoCoDeudor: string;
   dFec_Actualizacion: string;
   nId_Cliente: number;
-  nid_CalifDirecc: number;
+  nid_CalifDirecc: number | null;
   nid_usuarioUpd: number;
   nId_Departamento: number;
   nId_Provincia: number;
@@ -149,7 +149,7 @@ export interface UpdateDireccionRequest {
   cTipoCoDeudor: string;
   dFec_Actualizacion: string;
   nId_Cliente: number;
-  nid_CalifDirecc: number;
+  nid_CalifDirecc: number | null;
   nid_usuarioUpd: number;
   nId_Departamento: number;
   nId_Provincia: number;
