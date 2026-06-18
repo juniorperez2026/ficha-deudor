@@ -1,7 +1,12 @@
 import React from 'react';
+
 import { ModalFormLayout } from '../../layout/ModalFormLayout';
 import { FormGrid } from '../../../../../shared/components/ui/FormGrid';
-import { InputField, SelectField, TextAreaField } from '../../../../../shared/components/ui';
+import {
+  InputField,
+  SelectField,
+  TextAreaField,
+} from '../../../../../shared/components/ui';
 import { useModalForm } from '../../../../../shared/hooks/ui/useModalForm';
 import {
   useTelefonoResultados,
@@ -11,7 +16,10 @@ import {
   useTelefonoFuenteBusqueda,
   useTelefonoById,
 } from '../../../hooks/useTelefonosReferenciados';
-import type { TelefonoFormData, TelefonoEditarApi } from '../../../../../shared/types';
+import type {
+  TelefonoFormData,
+  TelefonoEditarApi,
+} from '../../../../../shared/types';
 import {
   prioridadesOptions,
   referenciasOptions,
@@ -26,7 +34,6 @@ interface Props {
   onGuardar?: (data: TelefonoFormData) => void;
 }
 
-// ✅ MOVIDO FUERA DEL COMPONENTE: misma referencia siempre
 const INITIAL_FORM: TelefonoFormData = {
   id: 0,
   numero: '',
@@ -41,18 +48,22 @@ const INITIAL_FORM: TelefonoFormData = {
   referencia: 0,
   reclamoIndecopi: false,
   bEstado: false,
-  dFecCarga_PersTelef: ''
+  dFecCarga_PersTelef: '',
 };
 
 const mapApiToFormData = (api: TelefonoEditarApi): TelefonoFormData => ({
-  id: api.nId_PersTelef,
+  id: api.nId_PersTelef ?? 0,
   numero: api.nTelef_Nro ?? '',
   anexo: api.nTelef_Anexo ?? '',
   resultado: api.nId_PersTelefOpe ? String(api.nId_PersTelefOpe) : '',
-  operadorTelefonico: api.nId_OperadorTelefonico ? String(api.nId_OperadorTelefonico) : '',
+  operadorTelefonico: api.nId_OperadorTelefonico
+    ? String(api.nId_OperadorTelefonico)
+    : '',
   ubicacion: api.nId_PersRefUbi ? String(api.nId_PersRefUbi) : '',
   prioridad: api.nTelef_Prioridad ? String(api.nTelef_Prioridad) : '',
-  horarioGestion: api.nId_PersDeudorGestionHrs ? String(api.nId_PersDeudorGestionHrs) : '',
+  horarioGestion: api.nId_PersDeudorGestionHrs
+    ? String(api.nId_PersDeudorGestionHrs)
+    : '',
   comentario: api.cTelef_Coment ?? '',
   fuenteBusqueda: api.nId_Fuente ? String(api.nId_Fuente) : '',
   referencia: api.nreferencia ?? 0,
@@ -61,26 +72,62 @@ const mapApiToFormData = (api: TelefonoEditarApi): TelefonoFormData => ({
   dFecCarga_PersTelef: api.dFecCarga_PersTelef ?? '',
 });
 
-const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefonoId, onGuardar }) => {
+const validateModalEditarTelefono = (
+  data: TelefonoFormData
+): Record<string, string> => {
+  const errors = validateTelefonoEditForm(data);
+
+  if (!data.prioridad) {
+    errors.prioridad = 'La prioridad es obligatoria';
+  }
+
+  if (!data.horarioGestion) {
+    errors.horarioGestion = 'El horario de gestión es obligatorio';
+  }
+
+  if (!data.fuenteBusqueda) {
+    errors.fuenteBusqueda = 'La fuente de búsqueda es obligatoria';
+  }
+
+  return errors;
+};
+
+const toNumberValue = (value: unknown): number => {
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const toBooleanValue = (value: unknown): boolean => {
+  return value === true || value === 'true' || value === 1 || value === '1';
+};
+
+const ModalEditarTelefono: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  telefonoId,
+  onGuardar,
+}) => {
   const {
     data: telefonoApi,
     isLoading: isLoadingTelefono,
     error: errorTelefono,
   } = useTelefonoById(telefonoId);
 
-  const { form, errors, handleChange, handleSubmit, handleCancel } = useModalForm<TelefonoFormData, TelefonoEditarApi>({
-    initialForm: INITIAL_FORM,
-    entity: telefonoApi,
-    mapEntityToForm: mapApiToFormData,
-    onClose,
-    onSubmit: (data) => {
-      onGuardar?.(data);
-    },
-    validate: validateTelefonoEditForm,
-    resetOnClose: true,
-  });
+  const telefonoEntity = telefonoApi as TelefonoEditarApi | null;
 
-  // ─── Catálogos ───
+  const { form, errors, handleChange, handleSubmit, handleCancel } =
+    useModalForm<TelefonoFormData, TelefonoEditarApi>({
+      initialForm: INITIAL_FORM,
+      entity: telefonoEntity,
+      mapEntityToForm: mapApiToFormData,
+      onClose,
+      onSubmit: (data) => {
+        onGuardar?.(data);
+      },
+      validate: validateModalEditarTelefono,
+      resetOnClose: true,
+    });
+
   const {
     data: resultadosData,
     isLoading: isLoadingResultados,
@@ -111,30 +158,35 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefonoId, onG
     error: errorFuentes,
   } = useTelefonoFuenteBusqueda();
 
-  const resultadosOptions = resultadosData?.map((r) => ({
-    id: r.id,
-    label: r.nombre,
-  })) ?? [];
+  const resultadosOptions =
+    resultadosData?.map((r) => ({
+      id: r.id,
+      label: r.nombre,
+    })) ?? [];
 
-  const operadoresOptions = operadoresData?.map((o) => ({
-    id: o.id,
-    label: o.nombre,
-  })) ?? [];
+  const operadoresOptions =
+    operadoresData?.map((o) => ({
+      id: o.id,
+      label: o.nombre,
+    })) ?? [];
 
-  const ubicacionesOptions = ubicacionesData?.map((u) => ({
-    id: u.id,
-    label: u.nombre,
-  })) ?? [];
+  const ubicacionesOptions =
+    ubicacionesData?.map((u) => ({
+      id: u.id,
+      label: u.nombre,
+    })) ?? [];
 
-  const horariosGestionOptions = horariosData?.map((h) => ({
-    id: h.id,
-    label: h.nombre,
-  })) ?? [];
+  const horariosGestionOptions =
+    horariosData?.map((h) => ({
+      id: h.id,
+      label: h.nombre,
+    })) ?? [];
 
-  const fuentesBusquedaOptions = fuentesBusquedaData?.map((f) => ({
-    id: f.id,
-    label: f.nombre,
-  })) ?? [];
+  const fuentesBusquedaOptions =
+    fuentesBusquedaData?.map((f) => ({
+      id: f.id,
+      label: f.nombre,
+    })) ?? [];
 
   if (!isOpen || !telefonoId) return null;
 
@@ -145,10 +197,10 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefonoId, onG
         title="EDITAR REFERENCIA TELEFÓNICA"
         onClose={handleCancel}
         submitLabel="Guardar Cambios"
-        onSubmit={handleSubmit}
+        onSubmit={() => undefined}
         minHeight="auto"
       >
-        <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando datos del teléfono...</div>
+        <div className="loading-message">Cargando datos del teléfono...</div>
       </ModalFormLayout>
     );
   }
@@ -160,29 +212,27 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefonoId, onG
         title="EDITAR REFERENCIA TELEFÓNICA"
         onClose={handleCancel}
         submitLabel="Guardar Cambios"
-        onSubmit={handleSubmit}
+        onSubmit={() => undefined}
         minHeight="auto"
       >
-        <div className="error-message" style={{ padding: '1rem', color: 'red' }}>
-          Error al cargar el teléfono: {errorTelefono}
+        <div className="error-message">
+          Error al cargar el teléfono: {String(errorTelefono)}
         </div>
       </ModalFormLayout>
     );
   }
 
-  if (!telefonoApi) {
+  if (!telefonoEntity) {
     return (
       <ModalFormLayout
         isOpen={isOpen}
         title="EDITAR REFERENCIA TELEFÓNICA"
         onClose={handleCancel}
         submitLabel="Guardar Cambios"
-        onSubmit={handleSubmit}
+        onSubmit={() => undefined}
         minHeight="auto"
       >
-        <div className="error-message" style={{ padding: '1rem', color: 'red' }}>
-          No se encontraron datos del teléfono
-        </div>
+        <div className="error-message">No se encontraron datos del teléfono</div>
       </ModalFormLayout>
     );
   }
@@ -198,7 +248,7 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefonoId, onG
     >
       <FormGrid columns={2}>
         <InputField
-          label="Número"
+          label="Número Telefónico"
           layout="inline"
           placeholder="Ingrese número telefónico"
           value={form.numero}
@@ -207,6 +257,7 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefonoId, onG
           error={errors.numero}
           required
         />
+
         <InputField
           label="Anexo"
           layout="inline"
@@ -230,6 +281,7 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefonoId, onG
           required
           disabled={isLoadingResultados}
         />
+
         <SelectField
           label="Operador Telf."
           layout="inline"
@@ -241,6 +293,7 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefonoId, onG
           required
           disabled={isLoadingOperadores}
         />
+
         <SelectField
           label="Ubicación"
           layout="inline"
@@ -254,7 +307,7 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefonoId, onG
         />
       </FormGrid>
 
-      <FormGrid columns={2}>
+      <FormGrid columns={3}>
         <SelectField
           label="Prioridad"
           layout="inline"
@@ -263,7 +316,9 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefonoId, onG
           onChange={(v) => handleChange('prioridad', v)}
           placeholder="-- Seleccione --"
           error={errors.prioridad}
+          required
         />
+
         <SelectField
           label="Horario Gestión"
           layout="inline"
@@ -272,7 +327,20 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefonoId, onG
           onChange={(v) => handleChange('horarioGestion', v)}
           placeholder={isLoadingHorarios ? 'Cargando...' : '-- Seleccione --'}
           error={errors.horarioGestion || errorHorarios || ''}
+          required
           disabled={isLoadingHorarios}
+        />
+
+        <SelectField
+          label="Fuente Búsqueda"
+          layout="inline"
+          options={fuentesBusquedaOptions}
+          value={form.fuenteBusqueda}
+          onChange={(v) => handleChange('fuenteBusqueda', v)}
+          placeholder={isLoadingFuentes ? 'Cargando...' : '-- Seleccione --'}
+          error={errors.fuenteBusqueda || errorFuentes || ''}
+          required
+          disabled={isLoadingFuentes}
         />
       </FormGrid>
 
@@ -288,35 +356,25 @@ const ModalEditarTelefono: React.FC<Props> = ({ isOpen, onClose, telefonoId, onG
 
       <FormGrid columns={2}>
         <SelectField
-          label="Fuente Búsqueda"
-          layout="inline"
-          options={fuentesBusquedaOptions}
-          value={form.fuenteBusqueda}
-          onChange={(v) => handleChange('fuenteBusqueda', v)}
-          placeholder={isLoadingFuentes ? 'Cargando...' : '-- Seleccione --'}
-          error={errors.fuenteBusqueda || errorFuentes || ''}
-          disabled={isLoadingFuentes}
-        />
-        <SelectField
           label="Referencia"
           layout="inline"
           options={referenciasOptions}
           value={form.referencia}
-          onChange={(v) => handleChange('referencia', v)}
+          onChange={(v) => handleChange('referencia', toNumberValue(v))}
           placeholder="-- Seleccione --"
           error={errors.referencia}
         />
-      </FormGrid>
 
-      <SelectField
-        label="Reclamo Indecopi"
-        layout="inline"
-        options={reclamoIndecopiOptions}
-        value={form.reclamoIndecopi}
-        onChange={(v) => handleChange('reclamoIndecopi', v)}
-        error={errors.reclamoIndecopi}
-        hidePlaceholder
-      />
+        <SelectField
+          label="Reclamo Indecopi"
+          layout="inline"
+          options={reclamoIndecopiOptions}
+          value={form.reclamoIndecopi}
+          onChange={(v) => handleChange('reclamoIndecopi', toBooleanValue(v))}
+          error={errors.reclamoIndecopi}
+          hidePlaceholder
+        />
+      </FormGrid>
 
       {Object.keys(errors).length > 0 && (
         <div className="error-summary">
