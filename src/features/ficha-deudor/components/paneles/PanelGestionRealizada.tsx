@@ -17,10 +17,10 @@ interface Props {
 
 const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_cartera, id_deudor, id_usuario }) => {
   const {
+    // Resumido
     allData,
     filteredData,
     paginatedData,
-    completo,
     isLoading,
     error,
     pageNumber,
@@ -35,6 +35,18 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
     onTextFilterChange,
     onSelectedFilterChange,
     setResumido,
+
+    // Expandido / Completo
+    completo,
+    completoLoading,
+    completoError,
+    completoPageNumber,
+    completoPageSize,
+    completoTotalRecords,
+    completoTotalPages,
+    setCompletoPageNumber,
+    setCompletoPageSize,
+    refetchCompleto,
   } = useGestionesRealizadas(id_cliente, id_cartera, id_deudor, id_usuario);
 
   // Estado local para toggle entre vistas
@@ -128,7 +140,11 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
         label: 'Cartera',
         render: (row: GestionCompleta) => <WrapCell>{row.cartera}</WrapCell>,
       },
-      { key: 'campana', label: 'Campaña' },
+      {
+        key: 'campana',
+        label: 'Campaña',
+        render: (row: GestionCompleta) => <WrapCell>{row.campana}</WrapCell>,
+      },
       { key: 'fecha', label: 'Fecha' },
       {
         key: 'gestor',
@@ -166,10 +182,13 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
   const indiceInicio = (pageNumber - 1) * pageSize;
   const indiceFin = Math.min(pageNumber * pageSize, totalRecords);
 
+  const completoIndiceInicio = (completoPageNumber - 1) * completoPageSize;
+  const completoIndiceFin = Math.min(completoPageNumber * completoPageSize, completoTotalRecords);
+
   // ─── ESTADOS DE CARGA/ERROR ───
   if (!isActive) return null;
 
-  if (isLoading) {
+  if (!vistaExpandida && isLoading) {
     return (
       <PanelLayout title="GESTIONES REALIZADAS" isActive={isActive}>
         <div style={{ padding: '2rem', textAlign: 'center' }}>
@@ -179,7 +198,7 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
     );
   }
 
-  if (error) {
+  if (!vistaExpandida && error) {
     return (
       <PanelLayout title="GESTIONES REALIZADAS" isActive={isActive}>
         <div style={{ padding: '2rem', color: '#c00' }}>
@@ -255,7 +274,7 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
         <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
-              {completo.length} gestión(es) en total
+              Mostrando {completoIndiceInicio + 1}-{completoIndiceFin} de {completoTotalRecords} gestión(es)
             </span>
             <ActionButton
               label="Volver"
@@ -266,12 +285,45 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
             />
           </div>
 
-          <Table
-            columns={columnsExpandidas}
-            data={completo}
-            emptyMessage="No se encontraron gestiones"
-            enableColumnFilters={false}
-          />
+          {completoLoading ? (
+            <div style={{ padding: '2rem', textAlign: 'center' }}>
+              <span>Cargando gestiones históricas...</span>
+            </div>
+          ) : completoError ? (
+            <div style={{ padding: '2rem', color: '#c00' }}>
+              <p style={{ marginBottom: 12 }}>Error al cargar gestiones históricas:</p>
+              <p style={{ fontSize: '0.9em', color: '#666', marginBottom: 16 }}>{completoError}</p>
+              <button onClick={refetchCompleto} style={{ padding: '8px 16px', cursor: 'pointer' }}>
+                Reintentar
+              </button>
+            </div>
+          ) : (
+            <>
+              <Table
+                columns={columnsExpandidas}
+                data={completo}
+                emptyMessage="No se encontraron gestiones históricas"
+                enableColumnFilters={false}
+              />
+
+              {completoTotalPages > 1 && (
+                <Paginacion
+                  paginaActual={completoPageNumber}
+                  totalPaginas={completoTotalPages}
+                  totalRegistros={completoTotalRecords}
+                  indiceInicio={completoIndiceInicio}
+                  indiceFin={completoIndiceFin}
+                  onPaginaAnterior={() => setCompletoPageNumber(Math.max(1, completoPageNumber - 1))}
+                  onPaginaSiguiente={() => setCompletoPageNumber(Math.min(completoTotalPages, completoPageNumber + 1))}
+                  onIrAPagina={setCompletoPageNumber}
+                  showPageSizeSelector={true}
+                  pageSize={completoPageSize}
+                  pageSizeOptions={[10, 25, 50, 100]}
+                  onPageSizeChange={setCompletoPageSize}
+                />
+              )}
+            </>
+          )}
         </div>
       )}
     </PanelLayout>

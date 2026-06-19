@@ -1,19 +1,22 @@
 import { apiClient } from '../../../shared/api/apiClient';
 import type {
   ApiResponse,
+  ApiResponseSimple,
   GestionRealizada,
   GestionRealizadaApi,
   GestionCompleta,
+  GestionHistoricaApi,
 } from '../../../shared/types/indexApi';
 
 const BASE_GESTION = '/v1/Gestion';
 
+// ─── GET: Gestiones Resumidas ───
 export async function fetchGestionesRealizadas(
   id_cliente: string,
   id_cartera: string,
   id_deudor: string,
   id_usuario: string,
-): Promise<{ resumido: GestionRealizada[]; completo: GestionCompleta[] }> {
+): Promise<{ resumido: GestionRealizada[] }> {
   const params = new URLSearchParams({
     nId_Cliente: id_cliente,
     nId_Cartera: id_cartera,
@@ -23,7 +26,7 @@ export async function fetchGestionesRealizadas(
     PageSize: '1000',
   });
 
-  const result = await apiClient<ApiResponse<GestionRealizadaApi[]>>(
+  const result = await apiClient<ApiResponseSimple<GestionRealizadaApi[]>>(
     `${BASE_GESTION}/GetGestionGestionesCarteraDeudor?${params.toString()}`,
   );
 
@@ -42,10 +45,58 @@ export async function fetchGestionesRealizadas(
     comentario: item.comentario,
   }));
 
-  // La vista completa viene del mismo endpoint o de otro GET separado
-  // Por ahora retornamos vacío para completo (se implementa con otro endpoint)
+  return { resumido };
+}
+
+// ─── GET: Gestiones Históricas (Vista Expandida / Completa) ───
+export async function fetchGestionesHistoricas(
+  id_cliente: string,
+  id_cartera: string,
+  id_deudor: string,
+  pageNumber: number = 1,
+  pageSize: number = 1000,
+): Promise<{
+  completo: GestionCompleta[];
+  pageNumber: number;
+  pageSize: number;
+  totalRecords: number;
+  totalPages: number;
+}> {
+  const params = new URLSearchParams({
+    nId_Cliente: id_cliente,
+    nId_Cartera: id_cartera,
+    nId_PersDeudor: id_deudor,
+    PageNumber: String(pageNumber),
+    PageSize: String(pageSize),
+  });
+
+  const result = await apiClient<ApiResponse<GestionHistoricaApi[]>>(
+    `${BASE_GESTION}/GetGestionEstadosGestionesCarteraDeudorHistorica?${params.toString()}`,
+  );
+
+  if (result.statusCode !== 200) {
+    throw new Error(result.message || 'Error cargando gestiones históricas');
+  }
+
+  const completo: GestionCompleta[] = result.response.map((item) => ({
+    id: String(item.nId_DocxCobrarOpe),
+    nro: item.nro,
+    cliente: item.cliente,
+    cartera: item.cartera,
+    campana: item.campanna,
+    fecha: item.fecha,
+    gestor: item.gestor,
+    documento: item.documento,
+    operacion: item.operacion,
+    resultado: item.resultado,
+    comentario: item.comentario,
+  }));
+
   return {
-    resumido,
-    completo: [], // ← Se llenará con otro fetch cuando esté el endpoint
+    completo,
+    pageNumber: result.pageNumber,
+    pageSize: result.pageSize,
+    totalRecords: result.totalRecords,
+    totalPages: result.totalPages,
   };
 }

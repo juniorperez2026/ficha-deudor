@@ -1,10 +1,11 @@
 import { apiClient } from '../../../shared/api/apiClient';
-import { mockCabeceraHeader, mockMejorRHeader } from '../mocks/mocks/deudorHeaderMock';
+import { mockMejorRHeader } from '../mocks/mocks/deudorHeaderMock';
 import type {
   ApiResponseSimple,
+  CabeceraInfoApi,
+  CabeceraInfo,
   DeudorInfo,
   DeudorInfoApi,
-  CabeceraInfo,
   MejorRInfo,
 } from '../../../shared/types/indexApi';
 
@@ -14,15 +15,27 @@ const BASE_GESTION = '/v1/Gestion';
 export async function fetchCabeceraHeader(
   id_cliente: string,
   id_cartera: string,
-  id_deudor: string,
 ): Promise<CabeceraInfo> {
-  // Este endpoint aún no está definido en la API, mantener mock por ahora
-  return apiClient<CabeceraInfo>(
-    `/cabecera-header?id_cliente=${id_cliente}&id_cartera=${id_cartera}&id_deudor=${id_deudor}`,
-    {
-      mock: () => mockCabeceraHeader[id_cliente] ?? mockCabeceraHeader['default'],
-    }
+  const params = new URLSearchParams({
+    nId_Cliente: id_cliente,
+    nId_Cartera: id_cartera,
+  });
+
+  const result = await apiClient<ApiResponseSimple<CabeceraInfoApi>>(
+    `${BASE_GESTION}/GetGestionZonaCarteraCampanna?${params.toString()}`,
   );
+
+  if (result.statusCode !== 200) {
+    throw new Error(result.message || 'Error cargando información de cabecera');
+  }
+
+  const api = result.response;
+
+  return {
+    zona: api.ciudad,
+    cartera: api.cCar_Nombre,
+    campana: api.cCampanna,
+  };
 }
 
 // ─── GET: Información del Deudor ───

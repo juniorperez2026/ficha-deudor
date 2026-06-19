@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { fetchGestionesRealizadas } from '../api/gestionesRealizadasApi';
+import { fetchGestionesRealizadas, fetchGestionesHistoricas } from '../api/gestionesRealizadasApi';
 import type { GestionRealizada, GestionCompleta } from '../../../shared/types';
 
 export interface TextFilters {
@@ -11,10 +11,10 @@ export interface SelectedFilters {
 }
 
 interface UseGestionesRealizadasReturn {
+  // ─── Resumido ───
   allData: GestionRealizada[];
   filteredData: GestionRealizada[];
   paginatedData: GestionRealizada[];
-  completo: GestionCompleta[];
   isLoading: boolean;
   error: string | null;
   pageNumber: number;
@@ -29,6 +29,18 @@ interface UseGestionesRealizadasReturn {
   onTextFilterChange: (columnKey: string, value: string) => void;
   onSelectedFilterChange: (columnKey: string, values: string[]) => void;
   setResumido: React.Dispatch<React.SetStateAction<GestionRealizada[]>>;
+
+  // ─── Expandido / Completo ───
+  completo: GestionCompleta[];
+  completoLoading: boolean;
+  completoError: string | null;
+  completoPageNumber: number;
+  completoPageSize: number;
+  completoTotalRecords: number;
+  completoTotalPages: number;
+  setCompletoPageNumber: (page: number) => void;
+  setCompletoPageSize: (size: number) => void;
+  refetchCompleto: () => void;
 }
 
 export function useGestionesRealizadas(
@@ -37,8 +49,10 @@ export function useGestionesRealizadas(
   id_deudor: string,
   id_usuario: string
 ): UseGestionesRealizadasReturn {
+  // ═══════════════════════════════════════
+  // ESTADO: Resumido
+  // ═══════════════════════════════════════
   const [allData, setAllData] = useState<GestionRealizada[]>([]);
-  const [completo, setCompleto] = useState<GestionCompleta[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,7 +62,18 @@ export function useGestionesRealizadas(
   const [textFilters, setTextFilters] = useState<TextFilters>({});
   const [selectedFilters, setSelectedFilters] = useState<SelectedFilters>({});
 
-  // ─── Efecto: Cargar gestiones resumidas ───
+  // ═══════════════════════════════════════
+  // ESTADO: Expandido / Completo
+  // ═══════════════════════════════════════
+  const [completo, setCompleto] = useState<GestionCompleta[]>([]);
+  const [completoLoading, setCompletoLoading] = useState(false);
+  const [completoError, setCompletoError] = useState<string | null>(null);
+  const [completoPageNumber, setCompletoPageNumber] = useState(1);
+  const [completoPageSize, setCompletoPageSize] = useState(50);
+
+  // ═══════════════════════════════════════
+  // EFECTO: Cargar gestiones resumidas
+  // ═══════════════════════════════════════
   useEffect(() => {
     if (!id_cliente || !id_cartera || !id_deudor || !id_usuario) return;
 
@@ -61,7 +86,6 @@ export function useGestionesRealizadas(
         const result = await fetchGestionesRealizadas(id_cliente, id_cartera, id_deudor, id_usuario);
         if (controller.signal.aborted) return;
         setAllData(result.resumido);
-        setCompleto(result.completo);
       } catch (err) {
         if (!controller.signal.aborted) {
           setError(err instanceof Error ? err.message : 'Error cargando gestiones');
@@ -76,9 +100,47 @@ export function useGestionesRealizadas(
     return () => controller.abort();
   }, [id_cliente, id_cartera, id_deudor, id_usuario]);
 
-  // ─── Resetear página y filtros cuando cambian IDs ───
+  // ═══════════════════════════════════════
+  // EFECTO: Cargar gestiones históricas (completo)
+  // ═══════════════════════════════════════
+  useEffect(() => {
+    if (!id_cliente || !id_cartera || !id_deudor) return;
+
+    const controller = new AbortController();
+
+    const loadCompleto = async () => {
+      setCompletoLoading(true);
+      setCompletoError(null);
+      try {
+        const result = await fetchGestionesHistoricas(
+          id_cliente,
+          id_cartera,
+          id_deudor,
+          completoPageNumber,
+          completoPageSize
+        );
+        if (controller.signal.aborted) return;
+        setCompleto(result.completo);
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setCompletoError(err instanceof Error ? err.message : 'Error cargando gestiones históricas');
+          setCompleto([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) setCompletoLoading(false);
+      }
+    };
+
+    loadCompleto();
+    return () => controller.abort();
+  }, [id_cliente, id_cartera, id_deudor, completoPageNumber, completoPageSize]);
+
+  // ═══════════════════════════════════════
+  // Resetear página y filtros cuando cambian IDs
+  // ═══════════════════════════════════════
   useEffect(() => {
     setPageNumber(1);
+    setCompletoPageNumber(1);
     setTextFilters({});
     setSelectedFilters({});
   }, [id_cliente, id_cartera, id_deudor, id_usuario]);
@@ -88,7 +150,13 @@ export function useGestionesRealizadas(
     setPageNumber(1);
   }, [pageSize]);
 
-  // ─── Filtros client-side ───
+  useEffect(() => {
+    setCompletoPageNumber(1);
+  }, [completoPageSize]);
+
+  // ═══════════════════════════════════════
+  // Filtros client-side (solo resumido)
+  // ═══════════════════════════════════════
   const filteredData = useMemo(() => {
     return allData.filter((row) => {
       for (const [columnKey, filterText] of Object.entries(textFilters)) {
@@ -107,14 +175,18 @@ export function useGestionesRealizadas(
     });
   }, [allData, textFilters, selectedFilters]);
 
-  // ─── Paginación client-side ───
+  // ═══════════════════════════════════════
+  // Paginación client-side (solo resumido)
+  // ═══════════════════════════════════════
   const totalRecords = filteredData.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
   const indiceInicio = (pageNumber - 1) * pageSize;
   const indiceFin = Math.min(indiceInicio + pageSize, totalRecords);
   const paginatedData = filteredData.slice(indiceInicio, indiceFin);
 
-  // ─── Refetch ───
+  // ═══════════════════════════════════════
+  // Refetch Resumido
+  // ═══════════════════════════════════════
   const refetch = useCallback(() => {
     if (!id_cliente || !id_cartera || !id_deudor || !id_usuario) return;
     const controller = new AbortController();
@@ -125,7 +197,6 @@ export function useGestionesRealizadas(
       .then((result) => {
         if (controller.signal.aborted) return;
         setAllData(result.resumido);
-        setCompleto(result.completo);
       })
       .catch((err) => {
         if (!controller.signal.aborted) {
@@ -140,7 +211,36 @@ export function useGestionesRealizadas(
     return () => controller.abort();
   }, [id_cliente, id_cartera, id_deudor, id_usuario]);
 
-  // ─── Handlers de filtros ───
+  // ═══════════════════════════════════════
+  // Refetch Completo
+  // ═══════════════════════════════════════
+  const refetchCompleto = useCallback(() => {
+    if (!id_cliente || !id_cartera || !id_deudor) return;
+    const controller = new AbortController();
+    setCompletoLoading(true);
+    setCompletoError(null);
+
+    fetchGestionesHistoricas(id_cliente, id_cartera, id_deudor, completoPageNumber, completoPageSize)
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        setCompleto(result.completo);
+      })
+      .catch((err) => {
+        if (!controller.signal.aborted) {
+          setCompletoError(err instanceof Error ? err.message : 'Error cargando gestiones históricas');
+          setCompleto([]);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setCompletoLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [id_cliente, id_cartera, id_deudor, completoPageNumber, completoPageSize]);
+
+  // ═══════════════════════════════════════
+  // Handlers de filtros (solo resumido)
+  // ═══════════════════════════════════════
   const onTextFilterChange = useCallback((columnKey: string, value: string) => {
     setTextFilters((prev) => ({ ...prev, [columnKey]: value }));
     setPageNumber(1);
@@ -156,10 +256,10 @@ export function useGestionesRealizadas(
   }, []);
 
   return {
+    // Resumido
     allData,
     filteredData,
     paginatedData,
-    completo,
     isLoading,
     error,
     pageNumber,
@@ -174,5 +274,17 @@ export function useGestionesRealizadas(
     onTextFilterChange,
     onSelectedFilterChange,
     setResumido,
+
+    // Expandido / Completo
+    completo,
+    completoLoading,
+    completoError,
+    completoPageNumber,
+    completoPageSize,
+    completoTotalRecords: completo.length, // La API ya pagina, usamos el total de la respuesta si lo expones
+    completoTotalPages: Math.max(1, Math.ceil(completo.length / completoPageSize)),
+    setCompletoPageNumber,
+    setCompletoPageSize,
+    refetchCompleto,
   };
 }

@@ -1,3 +1,26 @@
+// ─── API Response paginada ───
+export interface ApiResponse<T> {
+  code: string;
+  message: string;
+  messageUser: string;
+  statusCode: number;
+  pageNumber: number;
+  pageSize: number;
+  totalRecords: number;
+  totalPages: number;
+  response: T;
+}
+
+// ─── API Response simple (sin paginación) ───
+export interface ApiResponseSimple<T> {
+  code: string;
+  message: string;
+  messageUser: string;
+  statusCode: number;
+  response: T;
+}
+
+// ─── GESTIONES REALIZADAS (Resumido) ───
 export interface GestionRealizadaApi {
   nId_DocxCobrarOpe: number;
   nro: number;
@@ -9,17 +32,6 @@ export interface GestionRealizadaApi {
   comentario: string;
 }
 
-export interface EstadoGestionApi {
-  nId_DocxCobrarOpe: number; 
-  nro: number;
-  fechaGestion: string;
-  operador: string;
-  documento: string;
-  operacion: string;
-  resultado: string;
-  comentario: string;
-}
-
 export interface GestionRealizada {
   id: string;
   nro: number;
@@ -28,6 +40,21 @@ export interface GestionRealizada {
   documento: string;
   operacion: string;
   respuesta: string;
+  comentario: string;
+}
+
+// ─── GESTIONES HISTÓRICAS (Expandido / Completo) ───
+export interface GestionHistoricaApi {
+  nId_DocxCobrarOpe: number;
+  nro: number;
+  cliente: string;
+  cartera: string;
+  campanna: string;
+  fecha: string;
+  gestor: string;
+  documento: string;
+  operacion: string;
+  resultado: string;
   comentario: string;
 }
 
@@ -45,6 +72,7 @@ export interface GestionCompleta {
   comentario: string;
 }
 
+// ─── GESTIÓN FORM (para guardar) ───
 export interface GestionForm {
   nombreContacto: string;
   cargo: string;
@@ -65,6 +93,18 @@ export interface GestionForm {
   horaGestion: string;
   gestionTerminada: boolean;
   observaciones: string;
+}
+
+// ─── ESTADOS DE GESTIÓN (tabla de estados) ───
+export interface EstadoGestionApi {
+  nId_DocxCobrarOpe: number;
+  nro: number;
+  fechaGestion: string;
+  operador: string;
+  documento: string;
+  operacion: string;
+  resultado: string;
+  comentario: string;
 }
 
 export interface EstadoGestion {

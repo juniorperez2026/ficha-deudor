@@ -1,3 +1,24 @@
+export interface ApiResponseSimple<T> {
+  code: string;
+  message: string;
+  messageUser: string;
+  statusCode: number;
+  response: T;
+}
+
+export interface CabeceraInfoApi {
+  zona: string;
+  ciudad: string;
+  cCar_Nombre: string;
+  cCampanna: string;
+}
+
+export interface CabeceraInfo {
+  zona: string;
+  cartera: string;
+  campana: string;
+}
+
 export interface DeudorInfoApi {
   nId_PersDeudor: number;
   dni: string;
@@ -20,12 +41,6 @@ export interface DeudorInfoApi {
   clientePorVision: string;
   clienteListaBlanca: string;
   clienteConSinPe: string;
-}
-
-export interface CabeceraInfo {
-  zona: string;
-  cartera: string;
-  campana: string;
 }
 
 export interface DeudorInfo {

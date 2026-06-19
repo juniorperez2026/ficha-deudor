@@ -16,10 +16,10 @@ interface Props {
 
 const PanelEstadoGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_cartera, id_deudor }) => {
   const {
+    // Resumido
     allData,
     filteredData,
     paginatedData,
-    completo,
     isLoading,
     error,
     pageNumber,
@@ -33,6 +33,18 @@ const PanelEstadoGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id
     selectedFilters,
     onTextFilterChange,
     onSelectedFilterChange,
+
+    // Expandido / Completo
+    completo,
+    completoLoading,
+    completoError,
+    completoPageNumber,
+    completoPageSize,
+    completoTotalRecords,
+    completoTotalPages,
+    setCompletoPageNumber,
+    setCompletoPageSize,
+    refetchCompleto,
   } = useEstadosGestion(id_cliente, id_cartera, id_deudor);
 
   // Estado local para toggle entre vistas
@@ -143,10 +155,13 @@ const PanelEstadoGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id
   const indiceInicio = (pageNumber - 1) * pageSize;
   const indiceFin = Math.min(pageNumber * pageSize, totalRecords);
 
+  const completoIndiceInicio = (completoPageNumber - 1) * completoPageSize;
+  const completoIndiceFin = Math.min(completoPageNumber * completoPageSize, completoTotalRecords);
+
   // ─── ESTADOS DE CARGA/ERROR ───
   if (!isActive) return null;
 
-  if (isLoading) {
+  if (!vistaExpandida && isLoading) {
     return (
       <PanelLayout title="ESTADO DE GESTIÓN REALIZADA" isActive={isActive}>
         <div style={{ padding: '2rem', textAlign: 'center' }}>
@@ -156,7 +171,7 @@ const PanelEstadoGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id
     );
   }
 
-  if (error) {
+  if (!vistaExpandida && error) {
     return (
       <PanelLayout title="ESTADO DE GESTIÓN REALIZADA" isActive={isActive}>
         <div style={{ padding: '2rem', color: '#c00' }}>
@@ -232,7 +247,7 @@ const PanelEstadoGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id
         <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
-              {completo.length} estado(s) de gestión en total
+              Mostrando {completoIndiceInicio + 1}-{completoIndiceFin} de {completoTotalRecords} estado(s) de gestión
             </span>
             <ActionButton
               label="Volver"
@@ -243,12 +258,45 @@ const PanelEstadoGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id
             />
           </div>
 
-          <Table
-            columns={columnsExpandidas}
-            data={completo} // ← Datos completos sin paginación (o con paginación si la agregas)
-            emptyMessage="No se encontraron estados de gestión"
-            enableColumnFilters={false} // ← Desactivado para vista expandida simple
-          />
+          {completoLoading ? (
+            <div style={{ padding: '2rem', textAlign: 'center' }}>
+              <span>Cargando estados de gestión históricos...</span>
+            </div>
+          ) : completoError ? (
+            <div style={{ padding: '2rem', color: '#c00' }}>
+              <p style={{ marginBottom: 12 }}>Error al cargar estados de gestión históricos:</p>
+              <p style={{ fontSize: '0.9em', color: '#666', marginBottom: 16 }}>{completoError}</p>
+              <button onClick={refetchCompleto} style={{ padding: '8px 16px', cursor: 'pointer' }}>
+                Reintentar
+              </button>
+            </div>
+          ) : (
+            <>
+              <Table
+                columns={columnsExpandidas}
+                data={completo}
+                emptyMessage="No se encontraron estados de gestión históricos"
+                enableColumnFilters={false}
+              />
+
+              {completoTotalPages > 1 && (
+                <Paginacion
+                  paginaActual={completoPageNumber}
+                  totalPaginas={completoTotalPages}
+                  totalRegistros={completoTotalRecords}
+                  indiceInicio={completoIndiceInicio}
+                  indiceFin={completoIndiceFin}
+                  onPaginaAnterior={() => setCompletoPageNumber(Math.max(1, completoPageNumber - 1))}
+                  onPaginaSiguiente={() => setCompletoPageNumber(Math.min(completoTotalPages, completoPageNumber + 1))}
+                  onIrAPagina={setCompletoPageNumber}
+                  showPageSizeSelector={true}
+                  pageSize={completoPageSize}
+                  pageSizeOptions={[10, 25, 50, 100]}
+                  onPageSizeChange={setCompletoPageSize}
+                />
+              )}
+            </>
+          )}
         </div>
       )}
     </PanelLayout>

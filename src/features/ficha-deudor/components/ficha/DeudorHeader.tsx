@@ -24,7 +24,7 @@ const DeudorHeader: React.FC<Props> = ({
     useDeudorHeader(id_cliente, id_cartera, id_deudor);
   
   const { data: cabeceraData, isLoading: isLoadingCabecera, error: cabeceraError } = 
-    useCabeceraHeader(id_cliente, id_cartera, id_deudor);
+    useCabeceraHeader(id_cliente, id_cartera);
   
   const { data: mejorRData, isLoading: isLoadingMejorR, error: mejorRError } = 
     useMejorRHeader(id_cliente, id_cartera, id_deudor);
