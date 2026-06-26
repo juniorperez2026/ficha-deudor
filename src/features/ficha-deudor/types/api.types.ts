@@ -62,6 +62,7 @@ export interface BotonApi {
   id: string;
   label: string;
   action?: string;
+  popupUrl?: string;
 }
 
 // ─── Estado unificado ───

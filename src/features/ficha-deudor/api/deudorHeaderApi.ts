@@ -1,5 +1,5 @@
 import { apiClient } from '../../../shared/api/apiClient';
-import { mockMejorRHeader } from '../mocks/mocks/deudorHeaderMock';
+import { mockMejorRHeader } from '../mocks/catalogoDeudorHeader';
 import type {
   ApiResponseSimple,
   CabeceraInfoApi,

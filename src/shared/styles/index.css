@@ -29,3 +29,4 @@
 @import '../../features/ficha-deudor/styles/20-responsive-panels-and-actions.css';
 @import '../../features/auth/styles/21-auth.css';
 @import '../../features/dashboard/styles/22-dashboard.css';
+@import './components/20-popups.css';

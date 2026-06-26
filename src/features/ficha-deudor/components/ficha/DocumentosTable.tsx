@@ -2,14 +2,16 @@ import React, { useState, useRef, useEffect } from 'react';
 import Table from '../../../../shared/components/table/Table';
 import Modal from '../../../../shared/components/modals/Modal';
 import Paginacion from '../../../../shared/components/ui/Paginacion';
-import { useDocumentos } from '../../hooks/useDocumentos';
-import type { DocumentoApi, ColumnApi } from '../../../../shared/types/indexApi';
+import { useDocumentos, openPopup} from '../../hooks/useDocumentos';
+import type { DocumentoApi, ColumnApi, BotonApi, DeudorInfo } from '../../../../shared/types/indexApi';
 
 interface Props {
   id_cliente: string;
   id_cartera: string;
   id_deudor: string;
   id_contrato: string;
+  id_usuario: string;
+  data: DeudorInfo;
   onDocumentoClick?: (doc: DocumentoApi) => void;
 }
 
@@ -30,6 +32,8 @@ const DocumentosTable: React.FC<Props> = ({
   id_cartera,
   id_deudor,  
   id_contrato,
+  id_usuario,
+  data,
   onDocumentoClick,
 }) => {
   const {
@@ -50,7 +54,18 @@ const DocumentosTable: React.FC<Props> = ({
     selectedFilters,
     onTextFilterChange,
     onSelectedFilterChange,
-  } = useDocumentos(id_cliente, id_cartera, id_deudor, id_contrato);
+  } = useDocumentos(id_cliente, id_cartera, id_deudor, id_contrato, id_usuario);
+
+  const handleBotonClick = (boton: BotonApi) => {
+    if (boton.popupUrl) {
+      const nombre = encodeURIComponent(data.nombreRazonSocial);
+      const documento = encodeURIComponent(data.dniRuc);
+      const url = `${boton.popupUrl}?nombre=${nombre}&documento=${documento}`;
+      openPopup(url, boton.label, 1500, 600);
+    } else {
+      openModal(boton.label);
+    }
+  };
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
@@ -208,7 +223,7 @@ const DocumentosTable: React.FC<Props> = ({
             text-overflow: ellipsis !important;
             white-space: nowrap !important;
             padding: 6px 4px !important;
-            font-size: 0.85em !important;
+            font-size: 1em !important;
           }
           .documentos-table-compact th input[type="text"],
           .documentos-table-compact th input[type="search"],
@@ -297,7 +312,7 @@ const DocumentosTable: React.FC<Props> = ({
                 key={boton.id}
                 className="btn-est"
                 type="button"
-                onClick={() => openModal(boton.label)}
+                onClick={() => handleBotonClick(boton)}
               >
                 + {boton.label}
               </button>

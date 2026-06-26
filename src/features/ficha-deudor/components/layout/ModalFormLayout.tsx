@@ -4,6 +4,7 @@ import Modal from '../../../../shared/components/modals/Modal';
 import DeudorHeaderBlock from '../ficha/DeudorHeaderBlock';
 import { ActionButton } from '../../../../shared/components/ui';
 import { useDeudor } from '../../contexts/DeudorContext';
+import type { DeudorInfo } from '../../types/deudor.types';
 
 interface ModalFormLayoutProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface ModalFormLayoutProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
   minHeight?: string;
   showDeudorHeader?: boolean;
+  deudorData?: DeudorInfo | null; 
 }
 
 export const ModalFormLayout: React.FC<ModalFormLayoutProps> = ({
@@ -27,8 +29,11 @@ export const ModalFormLayout: React.FC<ModalFormLayoutProps> = ({
   size = 'lg',
   minHeight = '400px',
   showDeudorHeader = true,
+  deudorData: deudorDataProp,
 }) => {
-  const deudorData = useDeudor();
+  const deudorDataContext = useDeudor();
+
+  const deudorData = deudorDataProp ?? deudorDataContext;
 
   return (
     <Modal isOpen={isOpen} title={title} onClose={onClose} size={size}>

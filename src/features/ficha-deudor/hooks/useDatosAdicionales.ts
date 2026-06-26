@@ -3,7 +3,6 @@ import { fetchCabeceraDatosAdicionales, fetchAllDatosAdicionales } from '../api/
 import { useClientSideTable, type TextFilters, type SelectedFilters } from '../../../shared/hooks/useClientSideTable';
 import type { ColumnApi, DatoAdicionalApi } from '../../../shared/types/indexApi';
 
-// Re-exportar tipos para compatibilidad con los paneles
 export type { TextFilters, SelectedFilters };
 
 interface UseDatosAdicionalesReturn {

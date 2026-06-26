@@ -31,7 +31,6 @@ interface UseDocumentosReturn {
   onSelectedFilterChange: (columnKey: string, values: string[]) => void;
 }
 
-// ─── Helper: Enriquece filas con keys dyn_N para que useClientSideTable filtre correctamente ───
 function enrichWithDynamicKeys(data: DocumentoApi[], columns: ColumnApi[]): DocumentoApi[] {
   if (!columns.length || !data.length) return data;
 
@@ -60,6 +59,7 @@ export function useDocumentos(
   id_cartera: string,
   id_deudor: string,
   id_contrato: string,
+  id_usuario: string
 ): UseDocumentosReturn {
 
   const [columns, setColumns] = useState<ColumnApi[]>([]);
@@ -92,7 +92,7 @@ export function useDocumentos(
       try {
         const [cols, btns] = await Promise.all([
           fetchColumnas(id_cliente, id_contrato),
-          fetchBotones(id_cliente, id_cartera),
+          fetchBotones(id_cliente, id_deudor, id_usuario),
         ]);
         if (!cancelled) {
           setColumns(cols);
@@ -185,4 +185,29 @@ export function useDocumentos(
     onTextFilterChange: table.onTextFilterChange,
     onSelectedFilterChange: table.onSelectedFilterChange,
   };
+}
+
+export function openPopup(
+  url: string,
+  title: string,
+  width = 1600, // antes 1200
+  height = 800  // opcional
+): Window | null {
+  const left = (window.screen.width - width) / 2;
+  const top = (window.screen.height - height) / 2;
+
+  const features = [
+    `width=${width}`,
+    `height=${height}`,
+    `left=${left}`,
+    `top=${top}`,
+    'resizable=yes',
+    'scrollbars=yes',
+    'status=yes',
+    'toolbar=no',
+    'menubar=no',
+    'location=no',
+  ].join(',');
+
+  return window.open(url, title, features);
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/hooks';
 import { LoginPage } from '../features/auth/pages';
+import EmailDeudorPopup from '../features/ficha-deudor/components/popups/EmailDeudorPopup';
 
 // Lazy loading
 const DashboardPage = React.lazy(() => import('../features/dashboard/pages/DashboardPage'));
@@ -61,6 +62,7 @@ const App: React.FC = () => {
             <Navigate to={isFullyAuthenticated ? `/?id_cliente=${clienteSeleccionada?.id_cliente}&id_usuario=${usuario?.id_usuario}` : '/login'} replace />
           }
         />
+         <Route path="/popup/email-deudor/:id_cliente/:id_deudor/:id_usuario" element={<EmailDeudorPopup />} />
       </Routes>
     </BrowserRouter>
   );

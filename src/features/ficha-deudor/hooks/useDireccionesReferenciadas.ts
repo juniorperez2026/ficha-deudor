@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   fetchDireccionesReferenciadas,
   createDireccion,
@@ -11,14 +11,9 @@ import {
 } from '../api/direccionesReferenciadasApi';
 import type { DireccionReferenciada, DireccionFormData, DireccionEditFormData, Departamento, Provincia, Distrito, DireccionUbicacion, DireccionByIdApi } from '../../../shared/types';
 import { useApiResource } from '../../../shared/hooks/useApiResource';
+import { useClientSideTable, type TextFilters, type SelectedFilters } from '../../../shared/hooks/useClientSideTable';
 
-export interface TextFilters {
-  [columnKey: string]: string;
-}
-
-export interface SelectedFilters {
-  [columnKey: string]: string[];
-}
+export type { TextFilters, SelectedFilters };
 
 interface UseDireccionesReferenciadasReturn {
   allData: DireccionReferenciada[];
@@ -37,6 +32,7 @@ interface UseDireccionesReferenciadasReturn {
   selectedFilters: SelectedFilters;
   onTextFilterChange: (columnKey: string, value: string) => void;
   onSelectedFilterChange: (columnKey: string, values: string[]) => void;
+  resetFilters: () => void;
   create: (formData: DireccionFormData) => Promise<void>;
   update: (id: string, formData: DireccionEditFormData) => Promise<void>;
 }
@@ -50,11 +46,23 @@ export function useDireccionesReferenciadas(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [pageNumber, setPageNumber] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  // Memoizar dependencias de reset para evitar referencias nuevas en cada render
+  const resetDeps = useMemo(() => [id_cliente, id_deudor] as const, [id_cliente, id_deudor]);
 
-  const [textFilters, setTextFilters] = useState<TextFilters>({});
-  const [selectedFilters, setSelectedFilters] = useState<SelectedFilters>({});
+  const table = useClientSideTable<DireccionReferenciada>(
+    allData,
+    resetDeps,
+    { initialPageSize: 10 }
+  );
+
+  // Flag para evitar setState si el componente se desmonta durante un refetch manual
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // ─── Efecto: Cargar todos los registros ───
   useEffect(() => {
@@ -83,79 +91,28 @@ export function useDireccionesReferenciadas(
     return () => controller.abort();
   }, [id_cliente, id_deudor]);
 
-  // ─── Resetear página y filtros cuando cambian IDs ───
-  useEffect(() => {
-    setPageNumber(1);
-    setTextFilters({});
-    setSelectedFilters({});
-  }, [id_cliente, id_deudor]);
-
-  // Resetear página cuando cambia pageSize
-  useEffect(() => {
-    setPageNumber(1);
-  }, [pageSize]);
-
-  // ─── Filtros client-side ───
-  const filteredData = useMemo(() => {
-    return allData.filter((row) => {
-      for (const [columnKey, filterText] of Object.entries(textFilters)) {
-        if (!filterText) continue;
-        const cellValue = String(row[columnKey as keyof DireccionReferenciada] ?? '').toLowerCase();
-        if (!cellValue.includes(filterText.toLowerCase())) return false;
-      }
-
-      for (const [columnKey, selectedValues] of Object.entries(selectedFilters)) {
-        if (!selectedValues || selectedValues.length === 0) continue;
-        const cellValue = String(row[columnKey as keyof DireccionReferenciada] ?? '');
-        if (!selectedValues.includes(cellValue)) return false;
-      }
-
-      return true;
-    });
-  }, [allData, textFilters, selectedFilters]);
-
-  // ─── Paginación client-side ───
-  const totalRecords = filteredData.length;
-  const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
-  const indiceInicio = (pageNumber - 1) * pageSize;
-  const indiceFin = Math.min(indiceInicio + pageSize, totalRecords);
-  const paginatedData = filteredData.slice(indiceInicio, indiceFin);
-
   // ─── Refetch ───
   const refetch = useCallback(() => {
     if (!id_cliente || !id_deudor) return;
-    const controller = new AbortController();
+
     setIsLoading(true);
     setError(null);
 
     fetchDireccionesReferenciadas(id_cliente, id_deudor)
       .then((result) => {
-        if (controller.signal.aborted) return;
+        if (!isMountedRef.current) return;
         setAllData(result);
       })
       .catch((err) => {
-        if (!controller.signal.aborted) {
-          setError(err instanceof Error ? err.message : 'Error cargando direcciones');
-          setAllData([]);
-        }
+        if (!isMountedRef.current) return;
+        setError(err instanceof Error ? err.message : 'Error cargando direcciones');
+        setAllData([]);
       })
       .finally(() => {
-        if (!controller.signal.aborted) setIsLoading(false);
+        if (!isMountedRef.current) return;
+        setIsLoading(false);
       });
-
-    return () => controller.abort();
   }, [id_cliente, id_deudor]);
-
-  // ─── Handlers de filtros ───
-  const onTextFilterChange = useCallback((columnKey: string, value: string) => {
-    setTextFilters((prev) => ({ ...prev, [columnKey]: value }));
-    setPageNumber(1);
-  }, []);
-
-  const onSelectedFilterChange = useCallback((columnKey: string, values: string[]) => {
-    setSelectedFilters((prev) => ({ ...prev, [columnKey]: values }));
-    setPageNumber(1);
-  }, []);
 
   // ─── CREATE ───
   const create = useCallback(
@@ -189,21 +146,22 @@ export function useDireccionesReferenciadas(
 
   return {
     allData,
-    filteredData,
-    paginatedData,
+    filteredData: table.filteredData,
+    paginatedData: table.paginatedData,
     isLoading,
     error,
-    pageNumber,
-    pageSize,
-    totalRecords,
-    totalPages,
-    setPageNumber,
-    setPageSize,
+    pageNumber: table.pageNumber,
+    pageSize: table.pageSize,
+    totalRecords: table.totalRecords,
+    totalPages: table.totalPages,
+    setPageNumber: table.setPageNumber,
+    setPageSize: table.setPageSize,
     refetch,
-    textFilters,
-    selectedFilters,
-    onTextFilterChange,
-    onSelectedFilterChange,
+    textFilters: table.textFilters,
+    selectedFilters: table.selectedFilters,
+    onTextFilterChange: table.onTextFilterChange,
+    onSelectedFilterChange: table.onSelectedFilterChange,
+    resetFilters: table.resetFilters,
     create,
     update,
   };
