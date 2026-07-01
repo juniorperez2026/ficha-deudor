@@ -4,7 +4,7 @@ import Table from '../../../../shared/components/table/Table';
 import Paginacion from '../../../../shared/components/ui/Paginacion';
 import { WrapCell } from '../../../../shared/components/ui/WrapCell';
 import { useAgendasByDeudor } from '../../hooks/popups/useAgendasByDeudor';
-import type { Column, Agenda, DeudorInfo } from '../../../../shared/types';
+import type { Column, Agenda } from '../../../../shared/types';
 
 const formatFecha = (fechaIso: string): string => {
   if (!fechaIso) return '—';
@@ -30,20 +30,6 @@ const AgendaDeudorPopup: React.FC = () => {
   const [searchParams] = useSearchParams();
   const nombre = decodeURIComponent(searchParams.get('nombre') || '');
   const documento = decodeURIComponent(searchParams.get('documento') || '');
-
-  const deudorData: DeudorInfo | null = nombre
-    ? {
-        nombreRazonSocial: nombre,
-        dniRuc: documento,
-        gradoInstruccion: '',
-        edad: '',
-        contacto: '',
-        asesorPostVenta: '',
-        asesorComercial: '',
-        correoApv: '',
-        correoAc: '',
-      }
-    : null;
 
   const {
     allData,

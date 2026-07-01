@@ -1,34 +1,151 @@
-// hooks/usePaginatedTable.ts
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import {
+  useMemo,
+  useEffect,
+  useCallback,
+  useReducer,
+  type DependencyList,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 
 export interface UsePaginatedTableOptions<T> {
   data: T[];
   defaultPageSize?: number;
-  resetDeps?: React.DependencyList;
+  resetDeps?: DependencyList;
 }
 
 export interface UsePaginatedTableResult<T> {
-  // Paginación
   paginaActual: number;
-  setPaginaActual: React.Dispatch<React.SetStateAction<number>>;
+  setPaginaActual: Dispatch<SetStateAction<number>>;
   pageSize: number;
-  setPageSize: React.Dispatch<React.SetStateAction<number>>;
+  setPageSize: Dispatch<SetStateAction<number>>;
   totalPaginas: number;
   indiceInicio: number;
   indiceFin: number;
   datosPaginados: T[];
   datosFiltrados: T[];
-  
-  // Filtros
+
   textFilters: Record<string, string>;
   selectedFilters: Record<string, string[]>;
-  setTextFilters: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  setSelectedFilters: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
+  setTextFilters: Dispatch<SetStateAction<Record<string, string>>>;
+  setSelectedFilters: Dispatch<SetStateAction<Record<string, string[]>>>;
   onTextFilterChange: (colKey: string, text: string) => void;
   onSelectedFilterChange: (colKey: string, selected: string[]) => void;
-  
-  // Reset
+
   resetAll: () => void;
+}
+
+interface PaginatedTableState {
+  paginaActual: number;
+  pageSize: number;
+  textFilters: Record<string, string>;
+  selectedFilters: Record<string, string[]>;
+}
+
+type PaginatedTableAction =
+  | { type: 'SET_PAGINA_ACTUAL'; value: SetStateAction<number> }
+  | { type: 'SET_PAGE_SIZE'; value: SetStateAction<number> }
+  | {
+      type: 'SET_TEXT_FILTERS';
+      value: SetStateAction<Record<string, string>>;
+    }
+  | {
+      type: 'SET_SELECTED_FILTERS';
+      value: SetStateAction<Record<string, string[]>>;
+    }
+  | { type: 'SET_TEXT_FILTER'; colKey: string; text: string }
+  | { type: 'SET_SELECTED_FILTER'; colKey: string; selected: string[] }
+  | { type: 'RESET_ALL'; defaultPageSize: number };
+
+function createInitialState(defaultPageSize: number): PaginatedTableState {
+  return {
+    paginaActual: 1,
+    pageSize: defaultPageSize,
+    textFilters: {},
+    selectedFilters: {},
+  };
+}
+
+function resolveStateAction<TValue>(
+  value: SetStateAction<TValue>,
+  previousValue: TValue
+): TValue {
+  if (typeof value === 'function') {
+    return (value as (prev: TValue) => TValue)(previousValue);
+  }
+
+  return value;
+}
+
+function paginatedTableReducer(
+  state: PaginatedTableState,
+  action: PaginatedTableAction
+): PaginatedTableState {
+  switch (action.type) {
+    case 'SET_PAGINA_ACTUAL':
+      return {
+        ...state,
+        paginaActual: resolveStateAction(action.value, state.paginaActual),
+      };
+
+    case 'SET_PAGE_SIZE':
+      return {
+        ...state,
+        paginaActual: 1,
+        pageSize: resolveStateAction(action.value, state.pageSize),
+      };
+
+    case 'SET_TEXT_FILTERS':
+      return {
+        ...state,
+        paginaActual: 1,
+        textFilters: resolveStateAction(action.value, state.textFilters),
+      };
+
+    case 'SET_SELECTED_FILTERS':
+      return {
+        ...state,
+        paginaActual: 1,
+        selectedFilters: resolveStateAction(
+          action.value,
+          state.selectedFilters
+        ),
+      };
+
+    case 'SET_TEXT_FILTER':
+      return {
+        ...state,
+        paginaActual: 1,
+        textFilters: {
+          ...state.textFilters,
+          [action.colKey]: action.text,
+        },
+      };
+
+    case 'SET_SELECTED_FILTER':
+      return {
+        ...state,
+        paginaActual: 1,
+        selectedFilters: {
+          ...state.selectedFilters,
+          [action.colKey]: action.selected,
+        },
+      };
+
+    case 'RESET_ALL':
+      return createInitialState(action.defaultPageSize);
+
+    default:
+      return state;
+  }
+}
+
+function getRowValue(row: unknown, key: string): unknown {
+  if (typeof row !== 'object' || row === null) {
+    return undefined;
+  }
+
+  return (row as Record<string, unknown>)[key];
 }
 
 export function usePaginatedTable<T extends object>({
@@ -36,28 +153,44 @@ export function usePaginatedTable<T extends object>({
   defaultPageSize = 5,
   resetDeps = [],
 }: UsePaginatedTableOptions<T>): UsePaginatedTableResult<T> {
-  const [paginaActual, setPaginaActual] = useState(1);
-  const [pageSize, setPageSize] = useState(defaultPageSize);
-  const [textFilters, setTextFilters] = useState<Record<string, string>>({});
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({});
+  const [state, dispatch] = useReducer(
+    paginatedTableReducer,
+    defaultPageSize,
+    createInitialState
+  );
 
-  // Aplicar filtros
+  const { paginaActual, pageSize, textFilters, selectedFilters } = state;
+
+  const resetDepsKey = JSON.stringify(resetDeps);
+
+  useEffect(() => {
+    dispatch({
+      type: 'RESET_ALL',
+      defaultPageSize,
+    });
+  }, [resetDepsKey, defaultPageSize]);
+
   const datosFiltrados = useMemo(() => {
     let filtered = [...data];
 
     Object.entries(textFilters).forEach(([key, text]) => {
       if (text) {
-        filtered = filtered.filter(item => {
-          const value = item[key as keyof T];
-          return value != null && String(value).toLowerCase().includes(text.toLowerCase());
+        filtered = filtered.filter((item) => {
+          const value = getRowValue(item, key);
+
+          return (
+            value != null &&
+            String(value).toLowerCase().includes(text.toLowerCase())
+          );
         });
       }
     });
 
     Object.entries(selectedFilters).forEach(([key, selectedVals]) => {
       if (selectedVals.length) {
-        filtered = filtered.filter(item => {
-          const value = item[key as keyof T];
+        filtered = filtered.filter((item) => {
+          const value = getRowValue(item, key);
+
           return value != null && selectedVals.includes(String(value));
         });
       }
@@ -66,41 +199,78 @@ export function usePaginatedTable<T extends object>({
     return filtered;
   }, [data, textFilters, selectedFilters]);
 
-  // Paginación
   const totalPaginas = Math.ceil(datosFiltrados.length / pageSize) || 1;
-  const indiceInicio = (paginaActual - 1) * pageSize;
-  const datosPaginados = datosFiltrados.slice(indiceInicio, indiceInicio + pageSize);
+  const paginaActualSegura = Math.min(paginaActual, totalPaginas);
+  const indiceInicio = (paginaActualSegura - 1) * pageSize;
+  const datosPaginados = datosFiltrados.slice(
+    indiceInicio,
+    indiceInicio + pageSize
+  );
   const indiceFin = Math.min(indiceInicio + pageSize, datosFiltrados.length);
 
-  // Reset página cuando cambian filtros o pageSize
-  useEffect(() => {
-    setPaginaActual(1);
-  }, [datosFiltrados.length, pageSize]);
+  const setPaginaActual = useCallback<Dispatch<SetStateAction<number>>>(
+    (value) => {
+      dispatch({
+        type: 'SET_PAGINA_ACTUAL',
+        value,
+      });
+    },
+    []
+  );
 
-  // Reset completo
-  const resetAll = useCallback(() => {
-    setPaginaActual(1);
-    setPageSize(defaultPageSize);
-    setTextFilters({});
-    setSelectedFilters({});
-  }, [defaultPageSize]);
+  const setPageSize = useCallback<Dispatch<SetStateAction<number>>>((value) => {
+    dispatch({
+      type: 'SET_PAGE_SIZE',
+      value,
+    });
+  }, []);
 
-  // Reset externo (cuando isActive cambia)
-  useEffect(() => {
-    resetAll();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, resetDeps);
+  const setTextFilters = useCallback<
+    Dispatch<SetStateAction<Record<string, string>>>
+  >((value) => {
+    dispatch({
+      type: 'SET_TEXT_FILTERS',
+      value,
+    });
+  }, []);
+
+  const setSelectedFilters = useCallback<
+    Dispatch<SetStateAction<Record<string, string[]>>>
+  >((value) => {
+    dispatch({
+      type: 'SET_SELECTED_FILTERS',
+      value,
+    });
+  }, []);
 
   const onTextFilterChange = useCallback((colKey: string, text: string) => {
-    setTextFilters(prev => ({ ...prev, [colKey]: text }));
+    dispatch({
+      type: 'SET_TEXT_FILTER',
+      colKey,
+      text,
+    });
   }, []);
 
-  const onSelectedFilterChange = useCallback((colKey: string, selected: string[]) => {
-    setSelectedFilters(prev => ({ ...prev, [colKey]: selected }));
-  }, []);
+  const onSelectedFilterChange = useCallback(
+    (colKey: string, selected: string[]) => {
+      dispatch({
+        type: 'SET_SELECTED_FILTER',
+        colKey,
+        selected,
+      });
+    },
+    []
+  );
+
+  const resetAll = useCallback(() => {
+    dispatch({
+      type: 'RESET_ALL',
+      defaultPageSize,
+    });
+  }, [defaultPageSize]);
 
   return {
-    paginaActual,
+    paginaActual: paginaActualSegura,
     setPaginaActual,
     pageSize,
     setPageSize,

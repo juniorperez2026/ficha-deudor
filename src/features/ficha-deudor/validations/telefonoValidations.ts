@@ -1,81 +1,64 @@
-import type {
-  TelefonoFormData,
-} from '../../../shared/types';
+import type { TelefonoFormData } from '../../../shared/types';
+import { isEmptyValue } from '../../../shared/utils/validators';
 
-// Validación para registrar teléfono
-export const validateTelefonoForm = (
-  data: TelefonoFormData
-): Record<string, string> => {
-  const errors: Record<string, string> = {};
+type TelefonoFormErrors = Record<string, string>;
 
-  // Campos obligatorios
-  if (!data.numero.trim()) {
+const MAX_ANEXO_LENGTH = 10;
+const MAX_COMENTARIO_LENGTH = 500;
+const MIN_TELEFONO_LENGTH = 6;
+
+function isValidTelefonoFormat(value: string): boolean {
+  return /^[0-9+\-\s]+$/.test(value);
+}
+
+function validateTelefonoBase(data: TelefonoFormData): TelefonoFormErrors {
+  const errors: TelefonoFormErrors = {};
+  const numero = data.numero.trim();
+
+  if (isEmptyValue(numero)) {
     errors.numero = 'El número telefónico es obligatorio';
-  } else if (data.numero.length < 6) {
+  } else if (numero.length < MIN_TELEFONO_LENGTH) {
     errors.numero = 'El número debe tener al menos 6 dígitos';
-  } else if (!/^[0-9+\-\s]+$/.test(data.numero)) {
+  } else if (!isValidTelefonoFormat(numero)) {
     errors.numero = 'Ingrese un número telefónico válido';
   }
 
-  if (!data.resultado) {
+  if (isEmptyValue(data.resultado)) {
     errors.resultado = 'El resultado es obligatorio';
   }
 
-  if (!data.operadorTelefonico) {
+  if (isEmptyValue(data.operadorTelefonico)) {
     errors.operadorTelefonico = 'El operador es obligatorio';
   }
 
-  if (!data.ubicacion) {
+  if (isEmptyValue(data.ubicacion)) {
     errors.ubicacion = 'La ubicación es obligatoria';
   }
 
-  // Campos opcionales
-  if (data.anexo && data.anexo.length > 10) {
+  if (!isEmptyValue(data.anexo) && data.anexo.length > MAX_ANEXO_LENGTH) {
     errors.anexo = 'El anexo no puede tener más de 10 caracteres';
   }
 
-  if (data.comentario && data.comentario.length > 500) {
+  if (
+    !isEmptyValue(data.comentario) &&
+    data.comentario.length > MAX_COMENTARIO_LENGTH
+  ) {
     errors.comentario = 'El comentario no puede exceder 500 caracteres';
   }
 
   return errors;
+}
+
+// Validación para registrar teléfono
+export const validateTelefonoForm = (
+  data: TelefonoFormData
+): TelefonoFormErrors => {
+  return validateTelefonoBase(data);
 };
 
 // Validación para editar teléfono
 export const validateTelefonoEditForm = (
   data: TelefonoFormData
-): Record<string, string> => {
-  const errors: Record<string, string> = {};
-
-  // Campos obligatorios
-  if (!data.numero.trim()) {
-    errors.numero = 'El número telefónico es obligatorio';
-  } else if (data.numero.length < 6) {
-    errors.numero = 'El número debe tener al menos 6 dígitos';
-  } else if (!/^[0-9+\-\s]+$/.test(data.numero)) {
-    errors.numero = 'Ingrese un número telefónico válido';
-  }
-
-  if (!data.resultado) {
-    errors.resultado = 'El resultado es obligatorio';
-  }
-
-  if (!data.operadorTelefonico) {
-    errors.operadorTelefonico = 'El operador es obligatorio';
-  }
-
-  if (!data.ubicacion) {
-    errors.ubicacion = 'La ubicación es obligatoria';
-  }
-
-  // Campos opcionales
-  if (data.anexo && data.anexo.length > 10) {
-    errors.anexo = 'El anexo no puede tener más de 10 caracteres';
-  }
-
-  if (data.comentario && data.comentario.length > 500) {
-    errors.comentario = 'El comentario no puede exceder 500 caracteres';
-  }
-
-  return errors;
+): TelefonoFormErrors => {
+  return validateTelefonoBase(data);
 };

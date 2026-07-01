@@ -1,3 +1,4 @@
+import { env } from "@app/config/env";
 import { apiClient } from '../../../shared/api/apiClient';
 import type {
   ApiResponse,
@@ -54,6 +55,7 @@ export async function fetchBotones(
     `${BASE_DOCUMENTOS}/botones?id_cliente=${id_cliente}`,
     {
       mock: () => mockBotones(id_cliente, id_cartera, id_deudor, id_usuario),
+      useMock: env.useDocumentosMock,
     }
   );
 }

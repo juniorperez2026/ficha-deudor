@@ -5,7 +5,7 @@ import type { DeudorInfo, CabeceraInfo, MejorRInfo } from '../../../shared/types
 
 export function useCabeceraHeader(id_cliente: string, id_cartera: string) {
   const fetcher = useCallback(
-    (signal: AbortSignal) => fetchCabeceraHeader(id_cliente, id_cartera),
+    () => fetchCabeceraHeader(id_cliente, id_cartera),
     [id_cliente, id_cartera]
   );
 
@@ -14,7 +14,7 @@ export function useCabeceraHeader(id_cliente: string, id_cartera: string) {
 
 export function useDeudorHeader(id_cliente: string, id_cartera: string, id_deudor: string) {
   const fetcher = useCallback(
-    (signal: AbortSignal) => fetchDeudorHeader(id_cliente, id_cartera, id_deudor),
+    () => fetchDeudorHeader(id_cliente, id_cartera, id_deudor),
     [id_cliente, id_cartera, id_deudor]
   );
 
@@ -23,7 +23,7 @@ export function useDeudorHeader(id_cliente: string, id_cartera: string, id_deudo
 
 export function useMejorRHeader(id_cliente: string, id_cartera: string, id_deudor: string) {
   const fetcher = useCallback(
-    (signal: AbortSignal) => fetchMejorRHeader(id_cliente, id_cartera, id_deudor),
+    () => fetchMejorRHeader(id_cliente, id_cartera, id_deudor),
     [id_cliente, id_cartera, id_deudor]
   );
 

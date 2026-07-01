@@ -1,11 +1,15 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import Table from '../../../../shared/components/table/Table';
 import { ActionButton } from '../../../../shared/components/ui';
 import Paginacion from '../../../../shared/components/ui/Paginacion';
 import { WrapCell } from '../../../../shared/components/ui/WrapCell';
 import { PanelLayout } from './PanelLayout';
 import { useGestionesRealizadas } from '../../hooks/useGestionesRealizadas';
-import type { Column, GestionRealizada, GestionCompleta } from '../../../../shared/types';
+import type { Column } from '../../../../shared/types';
+import type {
+  GestionRealizada,
+  GestionCompleta,
+} from '../../../../shared/types/indexApi';
 import ExpandableCell from '../../../../shared/components/ui/ExpandableCell';
 
 interface Props {
@@ -16,7 +20,13 @@ interface Props {
   id_usuario: string;
 }
 
-const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_cartera, id_deudor, id_usuario }) => {
+const PanelGestionRealizada: React.FC<Props> = ({
+  isActive,
+  id_cliente,
+  id_cartera,
+  id_deudor,
+  id_usuario,
+}) => {
   const {
     // Resumido
     allData,
@@ -49,40 +59,59 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
     refetchCompleto,
   } = useGestionesRealizadas(id_cliente, id_cartera, id_deudor, id_usuario);
 
-  // Estado local para toggle entre vistas
   const [vistaExpandida, setVistaExpandida] = useState(false);
 
-  const handleVerMas = () => setVistaExpandida(true);
-  const handleVolver = () => setVistaExpandida(false);
+  const handleVerMas = useCallback(() => {
+    setVistaExpandida(true);
+  }, []);
 
-  const handleEliminar = (row: GestionRealizada) => {
-    if (window.confirm(`¿Eliminar gestión N° ${row.nro}?`)) {
-      setResumido((prev) => prev.filter((g) => g.id !== row.id));
-    }
-  };
+  const handleVolver = useCallback(() => {
+    setVistaExpandida(false);
+  }, []);
 
-  // ─── Columnas estáticas vista RESUMIDA ───
+  const handleEliminar = useCallback(
+    (row: GestionRealizada) => {
+      if (window.confirm(`¿Eliminar gestión N° ${row.nro}?`)) {
+        setResumido((prev) => prev.filter((gestion) => gestion.id !== row.id));
+      }
+    },
+    [setResumido]
+  );
+
   const columnsResumidas: Column[] = useMemo(
     () => [
       {
         key: 'nro',
         label: 'Nro',
         render: (row: GestionRealizada) => (
-          <span style={{ fontWeight: 700, color: '#1a2540' }}>{row.nro}</span>
+          <span style={{ fontWeight: 700, color: '#1a2540' }}>
+            {row.nro}
+          </span>
         ),
       },
-      { key: 'fecha', label: 'Fecha' },
+      {
+        key: 'fecha',
+        label: 'Fecha',
+      },
       {
         key: 'gestor',
         label: 'Gestor',
-        render: (row: GestionRealizada) => <WrapCell>{row.gestor}</WrapCell>,
+        render: (row: GestionRealizada) => (
+          <WrapCell>{row.gestor}</WrapCell>
+        ),
       },
-      { key: 'documento', label: 'Documento' },
+      {
+        key: 'documento',
+        label: 'Documento',
+      },
       {
         key: 'operacion',
         label: 'Operación',
         render: (row: GestionRealizada) => (
-          <span className="badge badge-info" style={{ fontSize: '10px', textTransform: 'uppercase' }}>
+          <span
+            className="badge badge-info"
+            style={{ fontSize: '10px', textTransform: 'uppercase' }}
+          >
             {row.operacion}
           </span>
         ),
@@ -91,7 +120,10 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
         key: 'respuesta',
         label: 'Respuesta',
         render: (row: GestionRealizada) => (
-          <WrapCell color={row.respuesta.includes('Contactado') ? '#166534' : '#991b1b'} weight={500}>
+          <WrapCell
+            color={row.respuesta.includes('Contactado') ? '#166534' : '#991b1b'}
+            weight={500}
+          >
             {row.respuesta}
           </WrapCell>
         ),
@@ -100,7 +132,7 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
         key: 'comentario',
         label: 'Comentario',
         render: (row: GestionRealizada) => (
-        <ExpandableCell text={row.comentario} maxLines={2} lineHeight={18} />
+          <ExpandableCell text={row.comentario} maxLines={2} lineHeight={18} />
         ),
       },
       {
@@ -119,46 +151,64 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
         ),
       },
     ],
-    []
+    [handleEliminar]
   );
 
-  // ─── Columnas estáticas vista EXPANDIDA ───
   const columnsExpandidas: Column[] = useMemo(
     () => [
       {
         key: 'nro',
         label: 'Nro',
         render: (row: GestionCompleta) => (
-          <span style={{ fontWeight: 700, color: '#1a2540' }}>{row.nro}</span>
+          <span style={{ fontWeight: 700, color: '#1a2540' }}>
+            {row.nro}
+          </span>
         ),
       },
       {
         key: 'cliente',
         label: 'Cliente',
-        render: (row: GestionCompleta) => <WrapCell>{row.cliente}</WrapCell>,
+        render: (row: GestionCompleta) => (
+          <WrapCell>{row.cliente}</WrapCell>
+        ),
       },
       {
         key: 'cartera',
         label: 'Cartera',
-        render: (row: GestionCompleta) => <WrapCell>{row.cartera}</WrapCell>,
+        render: (row: GestionCompleta) => (
+          <WrapCell>{row.cartera}</WrapCell>
+        ),
       },
       {
         key: 'campana',
         label: 'Campaña',
-        render: (row: GestionCompleta) => <WrapCell>{row.campana}</WrapCell>,
+        render: (row: GestionCompleta) => (
+          <WrapCell>{row.campana}</WrapCell>
+        ),
       },
-      { key: 'fecha', label: 'Fecha' },
+      {
+        key: 'fecha',
+        label: 'Fecha',
+      },
       {
         key: 'gestor',
         label: 'Gestor',
-        render: (row: GestionCompleta) => <WrapCell>{row.gestor}</WrapCell>,
+        render: (row: GestionCompleta) => (
+          <WrapCell>{row.gestor}</WrapCell>
+        ),
       },
-      { key: 'documento', label: 'Documento' },
+      {
+        key: 'documento',
+        label: 'Documento',
+      },
       {
         key: 'operacion',
         label: 'Operación',
         render: (row: GestionCompleta) => (
-          <span className="badge badge-info" style={{ fontSize: '10px', textTransform: 'uppercase' }}>
+          <span
+            className="badge badge-info"
+            style={{ fontSize: '10px', textTransform: 'uppercase' }}
+          >
             {row.operacion}
           </span>
         ),
@@ -167,7 +217,10 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
         key: 'resultado',
         label: 'Resultado',
         render: (row: GestionCompleta) => (
-          <WrapCell color={row.resultado.includes('Contactado') ? '#166534' : '#991b1b'} weight={500}>
+          <WrapCell
+            color={row.resultado.includes('Contactado') ? '#166534' : '#991b1b'}
+            weight={500}
+          >
             {row.resultado}
           </WrapCell>
         ),
@@ -176,7 +229,7 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
         key: 'comentario',
         label: 'Comentario',
         render: (row: GestionCompleta) => (
-        <ExpandableCell text={row.comentario} maxLines={2} lineHeight={18} />
+          <ExpandableCell text={row.comentario} maxLines={2} lineHeight={18} />
         ),
       },
     ],
@@ -187,9 +240,11 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
   const indiceFin = Math.min(pageNumber * pageSize, totalRecords);
 
   const completoIndiceInicio = (completoPageNumber - 1) * completoPageSize;
-  const completoIndiceFin = Math.min(completoPageNumber * completoPageSize, completoTotalRecords);
+  const completoIndiceFin = Math.min(
+    completoPageNumber * completoPageSize,
+    completoTotalRecords
+  );
 
-  // ─── ESTADOS DE CARGA/ERROR ───
   if (!isActive) return null;
 
   if (!vistaExpandida && isLoading) {
@@ -207,8 +262,16 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
       <PanelLayout title="GESTIONES REALIZADAS" isActive={isActive}>
         <div style={{ padding: '2rem', color: '#c00' }}>
           <p style={{ marginBottom: 12 }}>Error al cargar gestiones:</p>
-          <p style={{ fontSize: '0.9em', color: '#666', marginBottom: 16 }}>{error}</p>
-          <button onClick={refetch} style={{ padding: '8px 16px', cursor: 'pointer' }}>
+
+          <p style={{ fontSize: '0.9em', color: '#666', marginBottom: 16 }}>
+            {error}
+          </p>
+
+          <button
+            onClick={refetch}
+            style={{ padding: '8px 16px', cursor: 'pointer' }}
+            type="button"
+          >
             Reintentar
           </button>
         </div>
@@ -222,13 +285,11 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
       isActive={isActive}
     >
       {!vistaExpandida ? (
-        // ═══════════════════════════════════════
-        // VISTA RESUMIDA
-        // ═══════════════════════════════════════
         <div style={{ padding: '16px 0' }}>
           <div style={{ marginBottom: '12px' }}>
             <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
-              Mostrando {indiceInicio + 1}-{indiceFin} de {totalRecords} gestión(es)
+              Mostrando {indiceInicio + 1}-{indiceFin} de {totalRecords}{' '}
+              gestión(es)
             </span>
           </div>
 
@@ -253,7 +314,9 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
               indiceInicio={indiceInicio}
               indiceFin={indiceFin}
               onPaginaAnterior={() => setPageNumber(Math.max(1, pageNumber - 1))}
-              onPaginaSiguiente={() => setPageNumber(Math.min(totalPages, pageNumber + 1))}
+              onPaginaSiguiente={() =>
+                setPageNumber(Math.min(totalPages, pageNumber + 1))
+              }
               onIrAPagina={setPageNumber}
               showPageSizeSelector={true}
               pageSize={pageSize}
@@ -273,14 +336,26 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
           </div>
         </div>
       ) : (
-        // ═══════════════════════════════════════
-        // VISTA EXPANDIDA
-        // ═══════════════════════════════════════
-        <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div
+          style={{
+            padding: '16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
             <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
-              Mostrando {completoIndiceInicio + 1}-{completoIndiceFin} de {completoTotalRecords} gestión(es)
+              Mostrando {completoIndiceInicio + 1}-{completoIndiceFin} de{' '}
+              {completoTotalRecords} gestión(es)
             </span>
+
             <ActionButton
               label="Volver"
               variant="secondary"
@@ -296,9 +371,19 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
             </div>
           ) : completoError ? (
             <div style={{ padding: '2rem', color: '#c00' }}>
-              <p style={{ marginBottom: 12 }}>Error al cargar gestiones históricas:</p>
-              <p style={{ fontSize: '0.9em', color: '#666', marginBottom: 16 }}>{completoError}</p>
-              <button onClick={refetchCompleto} style={{ padding: '8px 16px', cursor: 'pointer' }}>
+              <p style={{ marginBottom: 12 }}>
+                Error al cargar gestiones históricas:
+              </p>
+
+              <p style={{ fontSize: '0.9em', color: '#666', marginBottom: 16 }}>
+                {completoError}
+              </p>
+
+              <button
+                onClick={refetchCompleto}
+                style={{ padding: '8px 16px', cursor: 'pointer' }}
+                type="button"
+              >
                 Reintentar
               </button>
             </div>
@@ -319,8 +404,14 @@ const PanelGestionRealizada: React.FC<Props> = ({ isActive, id_cliente, id_carte
                   totalRegistros={completoTotalRecords}
                   indiceInicio={completoIndiceInicio}
                   indiceFin={completoIndiceFin}
-                  onPaginaAnterior={() => setCompletoPageNumber(Math.max(1, completoPageNumber - 1))}
-                  onPaginaSiguiente={() => setCompletoPageNumber(Math.min(completoTotalPages, completoPageNumber + 1))}
+                  onPaginaAnterior={() =>
+                    setCompletoPageNumber(Math.max(1, completoPageNumber - 1))
+                  }
+                  onPaginaSiguiente={() =>
+                    setCompletoPageNumber(
+                      Math.min(completoTotalPages, completoPageNumber + 1)
+                    )
+                  }
                   onIrAPagina={setCompletoPageNumber}
                   showPageSizeSelector={true}
                   pageSize={completoPageSize}

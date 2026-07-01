@@ -9,6 +9,10 @@ import {
 } from '../../../../../shared/components/ui';
 import { useModalForm } from '../../../../../shared/hooks/ui/useModalForm';
 import {
+  toNumberValue,
+  toBooleanValue,
+} from '../../../../../shared/utils/formValueMappers';
+import {
   useTelefonoResultados,
   useTelefonoOperadores,
   useTelefonoUbicaciones,
@@ -44,15 +48,6 @@ const initialForm: TelefonoFormData = {
   reclamoIndecopi: false,
   bEstado: false,
   dFecCarga_PersTelef: '',
-};
-
-const toNumberValue = (value: unknown): number => {
-  const parsed = Number(value);
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
-
-const toBooleanValue = (value: unknown): boolean => {
-  return value === true || value === 'true' || value === 1 || value === '1';
 };
 
 const ModalRegistrarTelefono: React.FC<Props> = ({

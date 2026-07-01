@@ -9,6 +9,11 @@ import {
 } from '../../../../../shared/components/ui';
 import { useModalForm } from '../../../../../shared/hooks/ui/useModalForm';
 import {
+  toBooleanValue,
+  toNumberValue,
+  toStringValue,
+} from '../../../../../shared/utils/formValueMappers';
+import {
   useTelefonoResultados,
   useTelefonoOperadores,
   useTelefonoUbicaciones,
@@ -26,6 +31,7 @@ import {
   reclamoIndecopiOptions,
 } from '../../../mocks/catalogosTelefono';
 import { validateTelefonoEditForm } from '../../../validations/telefonoValidations';
+import { isEmptyValue } from '@shared/utils/validators';
 
 interface Props {
   isOpen: boolean;
@@ -51,25 +57,27 @@ const INITIAL_FORM: TelefonoFormData = {
   dFecCarga_PersTelef: '',
 };
 
+const toSelectValue = (value: unknown): string => {
+  const parsedValue = toNumberValue(value);
+
+  return parsedValue > 0 ? toStringValue(parsedValue) : '';
+};
+
 const mapApiToFormData = (api: TelefonoEditarApi): TelefonoFormData => ({
-  id: api.nId_PersTelef ?? 0,
-  numero: api.nTelef_Nro ?? '',
-  anexo: api.nTelef_Anexo ?? '',
-  resultado: api.nId_PersTelefOpe ? String(api.nId_PersTelefOpe) : '',
-  operadorTelefonico: api.nId_OperadorTelefonico
-    ? String(api.nId_OperadorTelefonico)
-    : '',
-  ubicacion: api.nId_PersRefUbi ? String(api.nId_PersRefUbi) : '',
-  prioridad: api.nTelef_Prioridad ? String(api.nTelef_Prioridad) : '',
-  horarioGestion: api.nId_PersDeudorGestionHrs
-    ? String(api.nId_PersDeudorGestionHrs)
-    : '',
-  comentario: api.cTelef_Coment ?? '',
-  fuenteBusqueda: api.nId_Fuente ? String(api.nId_Fuente) : '',
-  referencia: api.nreferencia ?? 0,
-  reclamoIndecopi: api.bReclamo ?? false,
-  bEstado: api.bEstado ?? false,
-  dFecCarga_PersTelef: api.dFecCarga_PersTelef ?? '',
+  id: toNumberValue(api.nId_PersTelef),
+  numero: toStringValue(api.nTelef_Nro),
+  anexo: toStringValue(api.nTelef_Anexo),
+  resultado: toSelectValue(api.nId_PersTelefOpe),
+  operadorTelefonico: toSelectValue(api.nId_OperadorTelefonico),
+  ubicacion: toSelectValue(api.nId_PersRefUbi),
+  prioridad: toSelectValue(api.nTelef_Prioridad),
+  horarioGestion: toSelectValue(api.nId_PersDeudorGestionHrs),
+  comentario: toStringValue(api.cTelef_Coment),
+  fuenteBusqueda: toSelectValue(api.nId_Fuente),
+  referencia: toNumberValue(api.nreferencia),
+  reclamoIndecopi: toBooleanValue(api.bReclamo),
+  bEstado: toBooleanValue(api.bEstado),
+  dFecCarga_PersTelef: toStringValue(api.dFecCarga_PersTelef),
 });
 
 const validateModalEditarTelefono = (
@@ -77,28 +85,19 @@ const validateModalEditarTelefono = (
 ): Record<string, string> => {
   const errors = validateTelefonoEditForm(data);
 
-  if (!data.prioridad) {
+  if (isEmptyValue(data.prioridad)) {
     errors.prioridad = 'La prioridad es obligatoria';
   }
 
-  if (!data.horarioGestion) {
+  if (isEmptyValue(data.horarioGestion)) {
     errors.horarioGestion = 'El horario de gestión es obligatorio';
   }
 
-  if (!data.fuenteBusqueda) {
+  if (isEmptyValue(data.fuenteBusqueda)) {
     errors.fuenteBusqueda = 'La fuente de búsqueda es obligatoria';
   }
 
   return errors;
-};
-
-const toNumberValue = (value: unknown): number => {
-  const parsed = Number(value);
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
-
-const toBooleanValue = (value: unknown): boolean => {
-  return value === true || value === 'true' || value === 1 || value === '1';
 };
 
 const ModalEditarTelefono: React.FC<Props> = ({
@@ -380,8 +379,8 @@ const ModalEditarTelefono: React.FC<Props> = ({
         <div className="error-summary">
           <strong>Por favor, corrija los siguientes errores:</strong>
           <ul>
-            {Object.values(errors).map((error, idx) => (
-              <li key={idx}>{error}</li>
+            {Object.values(errors).map((error) => (
+              <li key={error}>{error}</li>
             ))}
           </ul>
         </div>

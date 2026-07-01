@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-import { useAuth } from '../../auth/hooks';
+import { useAuth } from '../../auth/contexts/authContextValue';
 
 import Table from '../../../shared/components/table/Table';
 import Paginacion from '../../../shared/components/ui/Paginacion';
@@ -33,7 +33,7 @@ export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const { usuario, clienteSeleccionada, logout } = useAuth();
+  const { usuario, clienteSeleccionada } = useAuth();
 
   const idCliente =
     searchParams.get('id_cliente') ||
@@ -204,11 +204,6 @@ export const DashboardPage: React.FC = () => {
     });
 
     navigate(`/ficha-deudor?${queryParams.toString()}`);
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
   };
 
   const handleSearchKeyDown = (

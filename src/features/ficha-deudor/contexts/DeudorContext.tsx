@@ -1,7 +1,8 @@
-import React, { createContext, useContext } from 'react';
-import type { DeudorInfo } from '../../../shared/types';
+import React from 'react';
 
-const DeudorContext = createContext<DeudorInfo | null>(null);
+import { DeudorContext } from './deudorContextValue';
+
+import type { DeudorInfo } from '../../../shared/types';
 
 export const DeudorProvider: React.FC<{
   value: DeudorInfo | null;
@@ -12,8 +13,4 @@ export const DeudorProvider: React.FC<{
       {children}
     </DeudorContext.Provider>
   );
-};
-
-export const useDeudor = (): DeudorInfo | null => {
-  return useContext(DeudorContext);
 };

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
 interface ColumnFilterProps {
@@ -22,14 +22,36 @@ const ColumnFilter: React.FC<ColumnFilterProps> = ({
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+
+  const [dropdownPosition, setDropdownPosition] = useState({
+    top: 0,
+    left: 0,
+    width: 0,
+  });
+
+  const closeDropdown = useCallback(() => {
+    setOpen(false);
+    setSearch('');
+  }, []);
+
+  const handleToggleDropdown = useCallback(() => {
+    setOpen((prev) => {
+      const nextOpen = !prev;
+
+      if (!nextOpen) {
+        setSearch('');
+      }
+
+      return nextOpen;
+    });
+  }, []);
 
   useEffect(() => {
     if (open && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       const scrollX = window.scrollX || window.pageXOffset;
       const scrollY = window.scrollY || window.pageYOffset;
-      
+
       setDropdownPosition({
         top: rect.bottom + scrollY + 6,
         left: rect.left + scrollX,
@@ -39,30 +61,31 @@ const ColumnFilter: React.FC<ColumnFilterProps> = ({
   }, [open]);
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
+    if (!open) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+
       if (containerRef.current?.contains(target)) return;
       if (dropdownRef.current?.contains(target)) return;
-      setOpen(false);
+
+      closeDropdown();
     };
 
-    if (open) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [open]);
+    document.addEventListener('mousedown', handleClickOutside);
 
-  useEffect(() => {
-    if (!open) setSearch('');
-  }, [open]);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [open, closeDropdown]);
 
-  const filteredValues = values.filter(v =>
-    v.toLowerCase().includes(search.toLowerCase())
+  const filteredValues = values.filter((value) =>
+    value.toLowerCase().includes(search.toLowerCase())
   );
 
   const handleCheck = (value: string) => {
     if (selectedValues.includes(value)) {
-      onSelectedChange(selectedValues.filter(v => v !== value));
+      onSelectedChange(selectedValues.filter((selected) => selected !== value));
     } else {
       onSelectedChange([...selectedValues, value]);
     }
@@ -76,9 +99,12 @@ const ColumnFilter: React.FC<ColumnFilterProps> = ({
     }
   };
 
-  const handleClear = () => onSelectedChange([]);
+  const handleClear = () => {
+    onSelectedChange([]);
+  };
 
-  const isAllSelected = filteredValues.length > 0 && filteredValues.length === selectedValues.length;
+  const isAllSelected =
+    filteredValues.length > 0 && filteredValues.length === selectedValues.length;
 
   const dropdownContent = (
     <div
@@ -101,7 +127,7 @@ const ColumnFilter: React.FC<ColumnFilterProps> = ({
         type="text"
         placeholder="Buscar opciones..."
         value={search}
-        onChange={(e) => setSearch(e.target.value)}
+        onChange={(event) => setSearch(event.target.value)}
         style={{
           width: '100%',
           padding: '7px 9px',
@@ -127,9 +153,11 @@ const ColumnFilter: React.FC<ColumnFilterProps> = ({
             color: isAllSelected ? '#185FA5' : '#fff',
             cursor: 'pointer',
           }}
+          type="button"
         >
           {isAllSelected ? 'Todos ✓' : 'Todo'}
         </button>
+
         <button
           onClick={handleClear}
           style={{
@@ -140,6 +168,7 @@ const ColumnFilter: React.FC<ColumnFilterProps> = ({
             backgroundColor: '#ffffff',
             cursor: 'pointer',
           }}
+          type="button"
         >
           Limpiar
         </button>
@@ -152,7 +181,7 @@ const ColumnFilter: React.FC<ColumnFilterProps> = ({
           paddingRight: '4px',
         }}
       >
-        {filteredValues.map(value => (
+        {filteredValues.map((value) => (
           <label
             key={value}
             style={{
@@ -165,12 +194,12 @@ const ColumnFilter: React.FC<ColumnFilterProps> = ({
               cursor: 'pointer',
               transition: 'background 0.2s',
             }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.backgroundColor = '#eef4ff')
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.backgroundColor = 'transparent')
-            }
+            onMouseEnter={(event) => {
+              event.currentTarget.style.backgroundColor = '#eef4ff';
+            }}
+            onMouseLeave={(event) => {
+              event.currentTarget.style.backgroundColor = 'transparent';
+            }}
           >
             <input
               type="checkbox"
@@ -181,9 +210,11 @@ const ColumnFilter: React.FC<ColumnFilterProps> = ({
                 cursor: 'pointer',
               }}
             />
+
             <span style={{ color: '#333' }}>{value}</span>
           </label>
         ))}
+
         {filteredValues.length === 0 && (
           <div style={{ fontSize: '12px', color: '#999', padding: '10px' }}>
             Sin opciones
@@ -195,44 +226,53 @@ const ColumnFilter: React.FC<ColumnFilterProps> = ({
 
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
-      {/* INPUT + BOTÓN */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '100%', minWidth: 0 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          width: '100%',
+          minWidth: 0,
+        }}
+      >
         <input
           type="text"
           placeholder={label}
           value={textFilter}
-          onChange={(e) => onTextFilterChange(e.target.value)}
+          onChange={(event) => onTextFilterChange(event.target.value)}
           style={{
             flex: 1,
             minWidth: 0,
-            padding: '10px 6px',        // 🔥 antes: '8px 10px' → ahora más alto, menos ancho
-            fontSize: '11px',            // 🔥 antes: '12px' → un poco más pequeño para que quepa
+            padding: '10px 6px',
+            fontSize: '11px',
             borderRadius: '6px',
             border: '1px solid #cfd6e4',
             backgroundColor: '#ffffff',
             outline: 'none',
-            height: '32px',              // 🔥 NUEVO: alto fijo para que sea visible
+            height: '32px',
             boxSizing: 'border-box',
           }}
         />
+
         <button
-          onClick={() => setOpen(!open)}
+          onClick={handleToggleDropdown}
           style={{
-            padding: '0 6px',            // 🔥 antes: '8px 10px' → más compacto horizontal
-            height: '32px',              // 🔥 NUEVO: mismo alto que el input
+            padding: '0 6px',
+            height: '32px',
             borderRadius: '6px',
             border: '1px solid #cfd6e4',
             backgroundColor: selectedValues.length ? '#e8f0fe' : '#ffffff',
             cursor: 'pointer',
-            fontSize: '11px',            // 🔥 antes: '12px' → igual que input
+            fontSize: '11px',
             fontWeight: 600,
             color: '#185FA5',
             flexShrink: 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            minWidth: '24px',            // 🔥 NUEVO: ancho mínimo para el botón
+            minWidth: '24px',
           }}
+          type="button"
         >
           {selectedValues.length ? `${selectedValues.length}` : '▼'}
         </button>

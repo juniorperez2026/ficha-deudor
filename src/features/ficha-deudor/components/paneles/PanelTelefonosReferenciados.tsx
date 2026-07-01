@@ -58,11 +58,8 @@ const PanelTelefonosReferenciados: React.FC<Props> = ({ isActive, id_cliente, id
   };
 
   const handleRegistrar = async (formData: TelefonoFormData) => {
-    console.log('📥 PANEL: handleRegistrar llamado', formData);
     try {
-      console.log('⏳ PANEL: Llamando create...');
       await create(formData);
-      console.log('✅ PANEL: create exitoso, cerrando modal');
       setShowRegistrar(false);
     } catch (err) {
       console.error('❌ PANEL: Error en handleRegistrar:', err);

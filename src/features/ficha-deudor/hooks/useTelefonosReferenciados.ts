@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useReducer } from 'react';
 import {
   fetchTelefonosReferenciados,
   fetchTelefonoResultados,
@@ -10,11 +10,19 @@ import {
   fetchTelefonoFuenteBusqueda,
   fetchTelefonoById,
 } from '../api/telefonosReferenciadosApi';
-import { useClientSideTable, type TextFilters, type SelectedFilters } from '../../../shared/hooks/useClientSideTable';
-import type { TelefonoReferenciado, TelefonoFormData, TelefonoList, TelefonoEditarApi } from '../../../shared/types';
+import {
+  useClientSideTable,
+  type TextFilters,
+  type SelectedFilters,
+} from '../../../shared/hooks/useClientSideTable';
+import type {
+  TelefonoReferenciado,
+  TelefonoFormData,
+  TelefonoList,
+  TelefonoEditarApi,
+} from '../../../shared/types';
 import { useApiResource } from '../../../shared/hooks/useApiResource';
 
-// Re-exportar tipos para compatibilidad con los paneles
 export type { TextFilters, SelectedFilters };
 
 export interface UseTelefonosReferenciadosReturn {
@@ -38,6 +46,58 @@ export interface UseTelefonosReferenciadosReturn {
   update: (id: number, formData: TelefonoFormData) => Promise<void>;
 }
 
+interface TelefonoByIdState {
+  data: TelefonoEditarApi | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
+type TelefonoByIdAction =
+  | { type: 'RESET' }
+  | { type: 'LOAD_START' }
+  | { type: 'LOAD_SUCCESS'; data: TelefonoEditarApi }
+  | { type: 'LOAD_ERROR'; error: string };
+
+const telefonoByIdInitialState: TelefonoByIdState = {
+  data: null,
+  isLoading: false,
+  error: null,
+};
+
+function telefonoByIdReducer(
+  state: TelefonoByIdState,
+  action: TelefonoByIdAction
+): TelefonoByIdState {
+  switch (action.type) {
+    case 'RESET':
+      return telefonoByIdInitialState;
+
+    case 'LOAD_START':
+      return {
+        ...state,
+        isLoading: true,
+        error: null,
+      };
+
+    case 'LOAD_SUCCESS':
+      return {
+        data: action.data,
+        isLoading: false,
+        error: null,
+      };
+
+    case 'LOAD_ERROR':
+      return {
+        data: null,
+        isLoading: false,
+        error: action.error,
+      };
+
+    default:
+      return state;
+  }
+}
+
 export function useTelefonosReferenciados(
   id_cliente: string,
   id_deudor: string,
@@ -47,14 +107,12 @@ export function useTelefonosReferenciados(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ─── Hook genérico: filtros + paginación ───
   const table = useClientSideTable<TelefonoReferenciado>(
     allData,
     [id_cliente, id_deudor],
     { initialPageSize: 10 }
   );
 
-  // ─── Efecto: Cargar todos los registros ───
   useEffect(() => {
     if (!id_cliente || !id_deudor) return;
 
@@ -63,58 +121,79 @@ export function useTelefonosReferenciados(
     const loadData = async () => {
       setIsLoading(true);
       setError(null);
+
       try {
-        const result = await fetchTelefonosReferenciados(id_cliente, id_deudor);
+        const result = await fetchTelefonosReferenciados(
+          id_cliente,
+          id_deudor
+        );
+
         if (controller.signal.aborted) return;
+
         setAllData(result);
       } catch (err) {
         if (!controller.signal.aborted) {
-          setError(err instanceof Error ? err.message : 'Error cargando teléfonos');
+          setError(
+            err instanceof Error ? err.message : 'Error cargando teléfonos'
+          );
           setAllData([]);
         }
       } finally {
-        if (!controller.signal.aborted) setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
 
-    loadData();
-    return () => controller.abort();
+    void loadData();
+
+    return () => {
+      controller.abort();
+    };
   }, [id_cliente, id_deudor]);
 
-  // ─── Refetch ───
   const refetch = useCallback(() => {
     if (!id_cliente || !id_deudor) return;
 
     const controller = new AbortController();
+
     setIsLoading(true);
     setError(null);
 
     fetchTelefonosReferenciados(id_cliente, id_deudor)
       .then((result) => {
         if (controller.signal.aborted) return;
+
         setAllData(result);
       })
       .catch((err) => {
         if (!controller.signal.aborted) {
-          setError(err instanceof Error ? err.message : 'Error cargando teléfonos');
+          setError(
+            err instanceof Error ? err.message : 'Error cargando teléfonos'
+          );
           setAllData([]);
         }
       })
       .finally(() => {
-        if (!controller.signal.aborted) setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       });
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+    };
   }, [id_cliente, id_deudor]);
 
-  // ─── CREATE ───
   const create = useCallback(
     async (formData: TelefonoFormData) => {
       try {
         await createTelefono(id_cliente, id_deudor, id_usuario, formData);
         await refetch();
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Error al crear teléfono';
+        const msg =
+          err instanceof Error ? err.message : 'Error al crear teléfono';
+
         setError(msg);
         throw err;
       }
@@ -122,14 +201,15 @@ export function useTelefonosReferenciados(
     [id_cliente, id_deudor, id_usuario, refetch]
   );
 
-  // ─── UPDATE ───
   const update = useCallback(
     async (id: number, formData: TelefonoFormData) => {
       try {
         await updateTelefono(id_cliente, id_deudor, id_usuario, id, formData);
         await refetch();
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Error al actualizar teléfono';
+        const msg =
+          err instanceof Error ? err.message : 'Error al actualizar teléfono';
+
         setError(msg);
         throw err;
       }
@@ -159,51 +239,51 @@ export function useTelefonosReferenciados(
   };
 }
 
-// ─── Funciones auxiliares (sin cambios) ───
-
-export function parseApiDate(dateStr: string): string {
-  if (!dateStr) return new Date().toISOString();
-  if (dateStr.includes('T')) return dateStr;
-  const parsed = new Date(dateStr);
-  if (isNaN(parsed.getTime())) return new Date().toISOString();
-  return parsed.toISOString();
-}
-
 export function useTelefonoById(idTelefono: number | null) {
-  const [data, setData] = useState<TelefonoEditarApi | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(
+    telefonoByIdReducer,
+    telefonoByIdInitialState
+  );
 
   useEffect(() => {
     if (!idTelefono) {
-      setData(null);
-      setIsLoading(false);
-      setError(null);
+      dispatch({ type: 'RESET' });
       return;
     }
 
     const controller = new AbortController();
-    setIsLoading(true);
-    setError(null);
+
+    dispatch({ type: 'LOAD_START' });
 
     fetchTelefonoById(idTelefono, controller.signal)
-      .then(setData)
-      .catch((err) => {
-        if (err.name !== 'AbortError') {
-          setError(err.message);
-          setData(null);
-        }
+      .then((data) => {
+        if (controller.signal.aborted) return;
+
+        dispatch({
+          type: 'LOAD_SUCCESS',
+          data,
+        });
       })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          return;
         }
+
+        const message =
+          err instanceof Error ? err.message : 'Error cargando teléfono';
+
+        dispatch({
+          type: 'LOAD_ERROR',
+          error: message,
+        });
       });
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+    };
   }, [idTelefono]);
 
-  return { data, isLoading, error };
+  return state;
 }
 
 export function useTelefonoResultados() {

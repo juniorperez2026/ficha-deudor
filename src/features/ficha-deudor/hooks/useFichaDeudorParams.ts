@@ -1,23 +1,51 @@
 import { useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
-interface UrlParams {
-  id_cliente: string | null;
-  id_cartera: string | null;
-  id_deudor: string | null;
-  id_contrato: string | null;
-  id_usuario: string | null;
+export interface FichaDeudorParams {
+  id_cliente: string;
+  id_cartera: string;
+  id_deudor: string;
+  id_contrato: string;
+  id_usuario: string;
 }
 
-export function useUrlParams(): UrlParams {
+const REQUIRED_PARAMS = [
+  'id_cliente',
+  'id_cartera',
+  'id_deudor',
+  'id_contrato',
+  'id_usuario',
+] as const;
+
+type RequiredParamName = (typeof REQUIRED_PARAMS)[number];
+
+export function useFichaDeudorParams() {
+  const [searchParams] = useSearchParams();
+
   return useMemo(() => {
-    const params = new URLSearchParams(window.location.search);
-    
-    return {
-      id_cliente: params.get('id_cliente'),
-      id_cartera: params.get('id_cartera'),
-      id_deudor: params.get('id_deudor'),
-      id_contrato: params.get('id_contrato'),
-      id_usuario: params.get('id_usuario'),
+    const params: FichaDeudorParams = {
+      id_cliente: searchParams.get('id_cliente') ?? '',
+      id_cartera: searchParams.get('id_cartera') ?? '',
+      id_deudor: searchParams.get('id_deudor') ?? '',
+      id_contrato: searchParams.get('id_contrato') ?? '',
+      id_usuario: searchParams.get('id_usuario') ?? '',
     };
-  }, []); // Solo lee una vez al montar
+
+    const missingParams = REQUIRED_PARAMS.filter(
+      (paramName: RequiredParamName) => !params[paramName]
+    );
+
+    return {
+      params,
+      hasRequiredParams: missingParams.length === 0,
+      missingParams,
+      exampleUrl:
+        '/ficha-deudor?id_cliente=95&id_cartera=34048&id_deudor=4650189&id_contrato=182&id_usuario=16068',
+    };
+  }, [searchParams]);
+}
+
+export function useUrlParams(): FichaDeudorParams {
+  const { params } = useFichaDeudorParams();
+  return params;
 }

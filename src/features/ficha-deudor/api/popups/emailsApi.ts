@@ -1,6 +1,5 @@
 import { apiClient } from '../../../../shared/api/apiClient';
 import type {
-  ApiResponse,
   ApiResponseSimple,
   EmailApi,
   Email,
@@ -14,6 +13,10 @@ import type {
   UpdateEmailRequest,
   EmailByIdApi,
 } from '../../../../shared/types';
+
+import type {
+  ApiResponse
+} from '../../../../shared/types/indexApi';
 
 const BASE_EMAIL = '/v1/Email';
 

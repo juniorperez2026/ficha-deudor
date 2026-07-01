@@ -1,5 +1,5 @@
 import { apiClient } from '../../../shared/api/apiClient';
-import { env } from '../../../app/config/env';
+import { env } from '@app/config/env';
 import { mockLogin, mockGetClientesByUsuario } from '../mocks';
 
 import type {
@@ -96,8 +96,12 @@ export const login = async (
   }
 };
 
-export const fetchClientesByUsuario = async (
-  id_usuario: string
-): Promise<ClientesResponse> => {
-  return mockGetClientesByUsuario(id_usuario);
-};
+export async function fetchClientesByUsuario(id_usuario: string): Promise<ClientesResponse> {
+  if (env.useMocks || env.useClientesMock) {
+    return mockGetClientesByUsuario(id_usuario);
+  }
+
+  throw new Error(
+    'fetchClientesByUsuario requiere endpoint real. Configura VITE_USE_CLIENTES_MOCK=true o implementa el endpoint de clientes.'
+  );
+}

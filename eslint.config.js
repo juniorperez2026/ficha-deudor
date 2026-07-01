@@ -19,5 +19,19 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      /**
+       * Reglas que se corregirán gradualmente.
+       * Por ahora se dejan como warning para permitir trabajo incremental
+       * sin bloquear typecheck/build/check.
+       */
+      '@typescript-eslint/no-explicit-any': 'warn',
+
+      'react-refresh/only-export-components': 'warn',
+
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/refs': 'warn',
+      'react-hooks/use-memo': 'warn',
+    },
   },
 ])

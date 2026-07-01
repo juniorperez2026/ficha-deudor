@@ -4,7 +4,7 @@ import Table from '../../../../shared/components/table/Table';
 import Paginacion from '../../../../shared/components/ui/Paginacion';
 import { WrapCell } from '../../../../shared/components/ui/WrapCell';
 import { usePagosByDeudor } from '../../hooks/popups/usePagosByDeudor';
-import type { Column, Pago, DeudorInfo } from '../../../../shared/types';
+import type { Column, Pago } from '../../../../shared/types';
 
 const formatMonto = (monto: number, moneda: string): string => {
   const simbolo = moneda === 'SOLES' || moneda === 'PEN' ? 'S/' : moneda === 'DOLARES' || moneda === 'USD' ? '$' : '';
@@ -21,20 +21,6 @@ const PagoDeudorPopup: React.FC = () => {
   const [searchParams] = useSearchParams();
   const nombre = decodeURIComponent(searchParams.get('nombre') || '');
   const documento = decodeURIComponent(searchParams.get('documento') || '');
-
-  const deudorData: DeudorInfo | null = nombre
-    ? {
-        nombreRazonSocial: nombre,
-        dniRuc: documento,
-        gradoInstruccion: '',
-        edad: '',
-        contacto: '',
-        asesorPostVenta: '',
-        asesorComercial: '',
-        correoApv: '',
-        correoAc: '',
-      }
-    : null;
 
   const {
     allData,

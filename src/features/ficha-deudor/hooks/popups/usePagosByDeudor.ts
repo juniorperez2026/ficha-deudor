@@ -1,7 +1,17 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+  useReducer,
+} from 'react';
 import { fetchPagosByDeudor } from '../../api/popups/pagosApi';
 import type { Pago } from '../../../../shared/types';
-import { useClientSideTable, type TextFilters, type SelectedFilters } from '../../../../shared/hooks/useClientSideTable';
+import {
+  useClientSideTable,
+  type TextFilters,
+  type SelectedFilters,
+} from '../../../../shared/hooks/useClientSideTable';
 
 export type { TextFilters, SelectedFilters };
 
@@ -25,40 +35,96 @@ interface UsePagosByDeudorReturn {
   resetFilters: () => void;
 }
 
+interface PagosState {
+  allData: Pago[];
+  isLoading: boolean;
+  error: string | null;
+}
+
+type PagosAction =
+  | { type: 'LOAD_START' }
+  | { type: 'LOAD_SUCCESS'; data: Pago[] }
+  | { type: 'LOAD_ERROR'; error: string }
+  | { type: 'RESET_WITH_ERROR'; error: string };
+
+const initialState: PagosState = {
+  allData: [],
+  isLoading: false,
+  error: null,
+};
+
+function pagosReducer(state: PagosState, action: PagosAction): PagosState {
+  switch (action.type) {
+    case 'LOAD_START':
+      return {
+        ...state,
+        isLoading: true,
+        error: null,
+      };
+
+    case 'LOAD_SUCCESS':
+      return {
+        allData: action.data,
+        isLoading: false,
+        error: null,
+      };
+
+    case 'LOAD_ERROR':
+    case 'RESET_WITH_ERROR':
+      return {
+        allData: [],
+        isLoading: false,
+        error: action.error,
+      };
+
+    default:
+      return state;
+  }
+}
+
 export function usePagosByDeudor(
   id_cliente: string,
   id_cartera: string,
   id_deudor: string
 ): UsePagosByDeudorReturn {
-  const [allData, setAllData] = useState<Pago[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(pagosReducer, initialState);
+  const { allData, isLoading, error } = state;
 
-  const resetDeps = useMemo(() => [id_cliente, id_cartera, id_deudor] as const, [
-    id_cliente, id_cartera, id_deudor,
-  ]);
+  const resetDeps = useMemo(
+    () => [id_cliente, id_cartera, id_deudor] as const,
+    [id_cliente, id_cartera, id_deudor]
+  );
 
-  const table = useClientSideTable<Pago>(allData, resetDeps, { initialPageSize: 10 });
+  const table = useClientSideTable<Pago>(allData, resetDeps, {
+    initialPageSize: 10,
+  });
 
   const isMountedRef = useRef(true);
+
   useEffect(() => {
     isMountedRef.current = true;
-    return () => { isMountedRef.current = false; };
+
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
-  // ─── Carga inicial ───
   useEffect(() => {
     if (!id_cliente || !id_cartera || !id_deudor) {
-      setAllData([]);
-      setError('Faltan parámetros requeridos');
+      dispatch({
+        type: 'RESET_WITH_ERROR',
+        error: 'Faltan parámetros requeridos',
+      });
       return;
     }
 
     const controller = new AbortController();
 
     const loadData = async () => {
-      setIsLoading(true);
-      setError(null);
+      dispatch({
+        type: 'LOAD_START',
+      });
+
       try {
         const result = await fetchPagosByDeudor(
           id_cliente,
@@ -66,41 +132,53 @@ export function usePagosByDeudor(
           id_deudor,
           controller.signal
         );
+
         if (controller.signal.aborted) return;
-        setAllData(result);
+
+        dispatch({
+          type: 'LOAD_SUCCESS',
+          data: result,
+        });
       } catch (err) {
         if (!controller.signal.aborted) {
-          setError(err instanceof Error ? err.message : 'Error cargando pagos');
-          setAllData([]);
+          dispatch({
+            type: 'LOAD_ERROR',
+            error: err instanceof Error ? err.message : 'Error cargando pagos',
+          });
         }
-      } finally {
-        if (!controller.signal.aborted) setIsLoading(false);
       }
     };
 
-    loadData();
-    return () => controller.abort();
+    void loadData();
+
+    return () => {
+      controller.abort();
+    };
   }, [id_cliente, id_cartera, id_deudor]);
 
-  // ─── Refetch manual ───
   const refetch = useCallback(() => {
     if (!id_cliente || !id_cartera || !id_deudor) return;
 
-    setIsLoading(true);
-    setError(null);
+    dispatch({
+      type: 'LOAD_START',
+    });
 
     fetchPagosByDeudor(id_cliente, id_cartera, id_deudor)
       .then((result) => {
         if (!isMountedRef.current) return;
-        setAllData(result);
+
+        dispatch({
+          type: 'LOAD_SUCCESS',
+          data: result,
+        });
       })
       .catch((err) => {
         if (!isMountedRef.current) return;
-        setError(err instanceof Error ? err.message : 'Error cargando pagos');
-        setAllData([]);
-      })
-      .finally(() => {
-        if (!isMountedRef.current) setIsLoading(false);
+
+        dispatch({
+          type: 'LOAD_ERROR',
+          error: err instanceof Error ? err.message : 'Error cargando pagos',
+        });
       });
   }, [id_cliente, id_cartera, id_deudor]);
 

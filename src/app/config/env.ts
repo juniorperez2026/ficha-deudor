@@ -1,8 +1,6 @@
-const getBooleanEnv = (value: string | undefined): boolean => {
-  return value === "true" || value === "1";
-};
-
 export const env = {
   apiBaseUrl: import.meta.env.VITE_API_BASE_URL || "",
-  useMocks: getBooleanEnv(import.meta.env.VITE_USE_MOCKS),
+  useMocks: import.meta.env.VITE_USE_MOCKS === "true",
+  useClientesMock: import.meta.env.VITE_USE_CLIENTES_MOCK === "true",
+  useDocumentosMock: import.meta.env.VITE_USE_DOCUMENTOS_MOCK === "true",
 };

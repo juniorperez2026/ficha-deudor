@@ -10,23 +10,79 @@ interface ApiRequestOptions<T = unknown> {
   signal?: AbortSignal;
   headers?: Record<string, string>;
   mock?: MockFn<T>;
+  useMock?: boolean;
 }
 
 export class ApiError extends Error {
   public readonly status: number;
   public readonly data?: unknown;
 
-  constructor(
-    message: string,
-    status: number,
-    data?: unknown,
-  ) {
+  constructor(message: string, status: number, data?: unknown) {
     super(message);
 
     this.name = "ApiError";
     this.status = status;
     this.data = data;
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function getErrorMessage(errorData: unknown): string {
+  if (isRecord(errorData)) {
+    const message = errorData.message;
+    const messageUser = errorData.messageUser;
+    const title = errorData.title;
+
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+
+    if (typeof messageUser === "string" && messageUser.trim()) {
+      return messageUser;
+    }
+
+    if (typeof title === "string" && title.trim()) {
+      return title;
+    }
+  }
+
+  if (typeof errorData === "string" && errorData.trim()) {
+    return errorData;
+  }
+
+  return "Ocurrió un error al procesar la solicitud.";
+}
+
+async function parseResponseData(response: Response): Promise<unknown> {
+  const text = await response.text();
+
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+async function normalizeApiError(response: Response): Promise<ApiError> {
+  const errorData = await parseResponseData(response);
+  const message = getErrorMessage(errorData);
+
+  if (import.meta.env.DEV) {
+    console.error("API error:", {
+      status: response.status,
+      endpoint: response.url,
+      data: errorData,
+    });
+  }
+
+  return new ApiError(message, response.status, errorData);
 }
 
 export async function apiClient<T>(
@@ -39,19 +95,14 @@ export async function apiClient<T>(
     signal,
     headers = {},
     mock,
+    useMock = env.useMocks,
   } = options;
 
-  // =====================
-  // MODO MOCK
-  // =====================
-  if (mock) {
+  if (useMock && mock) {
     await new Promise((resolve) => setTimeout(resolve, 300));
     return await mock();
   }
 
-  // =====================
-  // FETCH REAL
-  // =====================
   const response = await fetch(`${env.apiBaseUrl}${endpoint}`, {
     method,
     signal,
@@ -63,28 +114,13 @@ export async function apiClient<T>(
   });
 
   if (!response.ok) {
-    const errorText = await response.text(); // ← captura como texto primero
-    console.error('📥 ERROR RAW RESPONSE:', errorText);
-    console.error('📥 ERROR STATUS:', response.status);
-    
-    // Intenta parsear como JSON si es posible
-    let errorData;
-    try {
-      errorData = JSON.parse(errorText);
-    } catch {
-      errorData = errorText;
-    }
-
-    throw new ApiError(
-      errorData?.message || errorData?.messageUser || "Ocurrió un error al procesar la solicitud.",
-      response.status,
-      errorData,
-    );
+    throw await normalizeApiError(response);
   }
 
   if (response.status === 204) {
     return undefined as T;
   }
 
-  return response.json() as Promise<T>;
+  const data = await parseResponseData(response);
+  return data as T;
 }

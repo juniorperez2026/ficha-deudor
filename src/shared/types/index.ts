@@ -1,14 +1,18 @@
-import React from 'react';
+import type React from 'react';
 
 export type SelectOption<T = string> = {
   id: T;
   label: string;
-}
+};
 
-export interface Column {
+type ColumnRender<TData> = {
+  bivarianceHack(row: TData): React.ReactNode;
+}['bivarianceHack'];
+
+export interface Column<TData = unknown> {
   key: string;
   label: string;
-  render?: (row: any) => React.ReactNode;
+  render?: ColumnRender<TData>;
   width?: string;
   filterable?: boolean;
   group?: string;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useFichaDeudorParams } from '../hooks/useFichaDeudorParams';
 import DeudorHeader from '../components/ficha/DeudorHeader';
 import AccionesRapidas from '../components/ficha/AccionesRapidas';
 import DocumentosTable from '../components/ficha/DocumentosTable';
@@ -11,8 +11,7 @@ import PanelEstadoGestionRealizada from '../components/paneles/PanelEstadoGestio
 import PanelGestionRealizada from '../components/paneles/PanelGestionRealizada';
 import { DeudorProvider } from '../contexts/DeudorContext';
 import { useDeudorHeader } from '../hooks/useDeudorHeader';
-import type { GestionForm } from '../../../shared/types/indexApi';
-import { useAuth } from '../../auth/hooks';
+import { useAuth } from '../../auth/contexts/authContextValue';
 
 interface FichaContentProps {
   id_cliente: string;
@@ -35,9 +34,7 @@ const FichaContent: React.FC<FichaContentProps> = ({
   
   const { data: deudorData } = useDeudorHeader(id_cliente, id_cartera, id_deudor);
 
-  const handleGestionSubmit = (data: GestionForm) => {
-    const payload = { ...data, id_cliente, id_cartera, id_deudor, id_contrato, id_usuario };
-    console.log('JSON listo para enviar al backend:', payload);
+  const handleGestionSubmit = () => {
     alert('Gestión guardada. Revisa la consola.');
   };
 
@@ -106,21 +103,53 @@ const FichaContent: React.FC<FichaContentProps> = ({
 
 const FichaDeudor: React.FC = () => {
   // ← NUEVO: Usar useSearchParams en lugar de ParamGuard
-  const [searchParams] = useSearchParams();
-  
-  const id_cliente = searchParams.get('id_cliente');
-  const id_cartera = searchParams.get('id_cartera');
-  const id_deudor = searchParams.get('id_deudor');
-  const id_contrato = searchParams.get('id_contrato');
-  const id_usuario = searchParams.get('id_usuario');
+  const {
+    params,
+    hasRequiredParams,
+    missingParams,
+    exampleUrl,
+  } = useFichaDeudorParams();
 
+  const {
+    id_cliente,
+    id_cartera,
+    id_deudor,
+    id_contrato,
+    id_usuario,
+  } = params;
   // Validar que todos los parámetros existan
-  if (!id_cliente || !id_cartera || !id_deudor || !id_contrato || !id_usuario) {
+  if (!hasRequiredParams) {
     return (
-      <div style={{ padding: '2rem', fontFamily: 'sans-serif', color: '#c00' }}>
-        <h2>Error: Parámetros faltantes</h2>
-        <p>La URL debe incluir: id_cliente, id_cartera, id_deudor, id_contrato, id_usuario</p>
-        <p>Ejemplo: ?id_cliente=178&id_cartera=45&id_deudor=999&id_contrato=30&id_usuario=carlos.r</p>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-2xl w-full">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">
+            Error: Parámetros faltantes
+          </h1>
+
+          <p className="text-gray-700 mb-4">
+            No se puede cargar la ficha del deudor porque faltan parámetros requeridos en la URL.
+          </p>
+
+          <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+            <p className="text-sm text-red-700 font-semibold mb-2">
+              Parámetros faltantes:
+            </p>
+
+            <ul className="list-disc list-inside text-sm text-red-700">
+              {missingParams.map((param) => (
+                <li key={param}>{param}</li>
+              ))}
+            </ul>
+          </div>
+
+          <p className="text-sm text-gray-600 mb-2">
+            Ejemplo de URL válida:
+          </p>
+
+          <code className="block bg-gray-100 text-gray-800 text-xs p-3 rounded overflow-x-auto">
+            {exampleUrl}
+          </code>
+        </div>
       </div>
     );
   }

@@ -1,13 +1,31 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { fetchColumnas, fetchBotones, fetchAllGestiones } from '../api/gestionesApi';
-import { useClientSideTable, type TextFilters, type SelectedFilters } from '../../../shared/hooks/useClientSideTable';
-import type { ColumnApi, DocumentoApi, BotonApi } from '../../../shared/types/indexApi';
+import {
+  fetchColumnas,
+  fetchBotones,
+  fetchAllGestiones,
+} from '../api/gestionesApi';
+import {
+  useClientSideTable,
+  type TextFilters,
+  type SelectedFilters,
+} from '../../../shared/hooks/useClientSideTable';
+import type {
+  ColumnApi,
+  DocumentoApi,
+  BotonApi,
+} from '../../../shared/types/indexApi';
 
 export type { TextFilters, SelectedFilters };
 
 const STATIC_KEYS = [
-  'nId_DocxCobrar', 'mejorStatus', 'nId_Moneda', 'bEstado',
-  'nZona', 'bSelected', 'nId_Estrategia', 'nId_Cartera',
+  'nId_DocxCobrar',
+  'mejorStatus',
+  'nId_Moneda',
+  'bEstado',
+  'nZona',
+  'bSelected',
+  'nId_Estrategia',
+  'nId_Cartera',
 ];
 
 interface UseDocumentosReturn {
@@ -31,19 +49,24 @@ interface UseDocumentosReturn {
   onSelectedFilterChange: (columnKey: string, values: string[]) => void;
 }
 
-function enrichWithDynamicKeys(data: DocumentoApi[], columns: ColumnApi[]): DocumentoApi[] {
+function enrichWithDynamicKeys(
+  data: DocumentoApi[],
+  columns: ColumnApi[]
+): DocumentoApi[] {
   if (!columns.length || !data.length) return data;
 
   return data.map((row) => {
     const allKeys = Object.keys(row);
-    const dynamicKeys = allKeys.filter((k) => !STATIC_KEYS.includes(k));
+    const dynamicKeys = allKeys.filter((key) => !STATIC_KEYS.includes(key));
     const enriched: DocumentoApi = { ...row };
 
     columns.forEach((col) => {
       const match = col.key.match(/dyn_(\d+)/);
+
       if (match) {
         const index = parseInt(match[1], 10);
         const fieldName = dynamicKeys[index];
+
         if (fieldName !== undefined) {
           enriched[col.key] = row[fieldName];
         }
@@ -61,7 +84,6 @@ export function useDocumentos(
   id_contrato: string,
   id_usuario: string
 ): UseDocumentosReturn {
-
   const [columns, setColumns] = useState<ColumnApi[]>([]);
   const [botones, setBotones] = useState<BotonApi[]>([]);
   const [metaLoading, setMetaLoading] = useState(false);
@@ -71,95 +93,135 @@ export function useDocumentos(
   const [dataLoading, setDataLoading] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
 
-  // Enriquecer datos con keys dyn_N para filtros
-  const allData = useMemo(() => enrichWithDynamicKeys(rawData, columns), [rawData, columns]);
+  const allData = useMemo(
+    () => enrichWithDynamicKeys(rawData, columns),
+    [rawData, columns]
+  );
 
-  // ─── Hook genérico: filtros + paginación ───
   const table = useClientSideTable<DocumentoApi>(
     allData,
     [id_cliente, id_cartera, id_deudor, id_contrato],
     { initialPageSize: 10 }
   );
 
-  // ─── Efecto 1: Cargar cabeceras y botones ───
   useEffect(() => {
-    if (!id_cliente || !id_cartera || !id_contrato) return;
+    if (
+      !id_cliente ||
+      !id_cartera ||
+      !id_deudor ||
+      !id_contrato ||
+      !id_usuario
+    ) {
+      return;
+    }
+
     let cancelled = false;
 
     const loadMeta = async () => {
       setMetaLoading(true);
       setMetaError(null);
+
       try {
         const [cols, btns] = await Promise.all([
           fetchColumnas(id_cliente, id_contrato),
           fetchBotones(id_cliente, id_cartera, id_deudor, id_usuario),
         ]);
+
         if (!cancelled) {
           setColumns(cols);
           setBotones(btns);
         }
       } catch (err) {
         if (!cancelled) {
-          setMetaError(err instanceof Error ? err.message : 'Error cargando metadatos');
+          setMetaError(
+            err instanceof Error ? err.message : 'Error cargando metadatos'
+          );
         }
       } finally {
-        if (!cancelled) setMetaLoading(false);
+        if (!cancelled) {
+          setMetaLoading(false);
+        }
       }
     };
 
-    loadMeta();
-    return () => { cancelled = true; };
-  }, [id_cliente, id_cartera, id_contrato]);
+    void loadMeta();
 
-  // ─── Efecto 2: Cargar TODOS los datos ───
+    return () => {
+      cancelled = true;
+    };
+  }, [id_cliente, id_cartera, id_deudor, id_contrato, id_usuario]);
+
   useEffect(() => {
     if (!id_cliente || !id_cartera || !id_deudor) return;
+
     let cancelled = false;
 
     const loadData = async () => {
       setDataLoading(true);
       setDataError(null);
+
       try {
-        const result = await fetchAllGestiones(id_cliente, id_cartera, id_deudor);
+        const result = await fetchAllGestiones(
+          id_cliente,
+          id_cartera,
+          id_deudor
+        );
+
         if (cancelled) return;
+
         setRawData(result);
       } catch (err) {
         if (!cancelled) {
-          setDataError(err instanceof Error ? err.message : 'Error cargando documentos');
+          setDataError(
+            err instanceof Error ? err.message : 'Error cargando documentos'
+          );
           setRawData([]);
         }
       } finally {
-        if (!cancelled) setDataLoading(false);
+        if (!cancelled) {
+          setDataLoading(false);
+        }
       }
     };
 
-    loadData();
-    return () => { cancelled = true; };
+    void loadData();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id_cliente, id_cartera, id_deudor]);
 
-  // ─── Refetch ───
   const refetch = useCallback(() => {
     if (!id_cliente || !id_cartera || !id_deudor) return;
+
     let cancelled = false;
+
     setDataLoading(true);
     setDataError(null);
 
     fetchAllGestiones(id_cliente, id_cartera, id_deudor)
       .then((result) => {
         if (cancelled) return;
+
         setRawData(result);
       })
       .catch((err) => {
         if (!cancelled) {
-          setDataError(err instanceof Error ? err.message : 'Error cargando documentos');
+          setDataError(
+            err instanceof Error ? err.message : 'Error cargando documentos'
+          );
           setRawData([]);
         }
       })
       .finally(() => {
-        if (!cancelled) setDataLoading(false);
+        if (!cancelled) {
+          setDataLoading(false);
+        }
       });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [id_cliente, id_cartera, id_deudor]);
 
   const isLoading = metaLoading || dataLoading;
@@ -190,8 +252,8 @@ export function useDocumentos(
 export function openPopup(
   url: string,
   title: string,
-  width = 1600, // antes 1200
-  height = 800  // opcional
+  width = 1600,
+  height = 800
 ): Window | null {
   const left = (window.screen.width - width) / 2;
   const top = (window.screen.height - height) / 2;

@@ -5,7 +5,9 @@ import Paginacion from '../../../../shared/components/ui/Paginacion';
 import { WrapCell } from '../../../../shared/components/ui/WrapCell';
 import { PanelLayout } from './PanelLayout';
 import { useEstadosGestion } from '../../hooks/useEstadosGestion';
-import type { Column, EstadoGestion, EstadoGestionCompleta } from '../../../../shared/types';
+import type { Column } from '../../../../shared/types';
+import type { EstadoGestion, EstadoGestionCompleta } from '../../../../shared/types/indexApi';
+
 import ExpandableCell from '../../../../shared/components/ui/ExpandableCell';
 
 interface Props {

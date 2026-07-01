@@ -1,9 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
 import { LoginForm, ClienteSelectorModal } from '../components';
-import { useAuth } from '../hooks';
-
+import { useAuth } from '../contexts/authContextValue';
 import type { Cliente, LoginPayload, Usuario } from '../types';
 
 export const LoginPage: React.FC = () => {

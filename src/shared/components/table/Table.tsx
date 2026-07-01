@@ -1,15 +1,15 @@
-import React, { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { Column } from '../../types';
 import ColumnFilter from '../ui/ColumnFilter';
 
-interface Props {
-  columns: Column[];
-  data: any[];
-  onRowClick?: (row: any) => void;
-  rowClassName?: (row: any) => string;
+interface Props<TData = unknown> {
+  columns: Column<TData>[];
+  data: TData[];
+  onRowClick?: (row: TData) => void;
+  rowClassName?: (row: TData) => string;
   emptyMessage?: string;
   enableColumnFilters?: boolean;
-  allData?: any[];
+  allData?: TData[];
   textFilters?: Record<string, string>;
   selectedFilters?: Record<string, string[]>;
   onTextFilterChange?: (colKey: string, text: string) => void;
@@ -17,15 +17,23 @@ interface Props {
   fitToPanel?: boolean;
 }
 
-interface HeaderCellGroup {
+interface HeaderCellGroup<TData = unknown> {
   key: string;
   label: string;
   colSpan: number;
   grouped: boolean;
-  column?: Column;
+  column?: Column<TData>;
 }
 
-const Table: React.FC<Props> = ({
+function getRowValue(row: unknown, key: string): unknown {
+  if (typeof row !== 'object' || row === null) {
+    return undefined;
+  }
+
+  return (row as Record<string, unknown>)[key];
+}
+
+function Table<TData = unknown>({
   columns,
   data,
   onRowClick,
@@ -38,35 +46,40 @@ const Table: React.FC<Props> = ({
   onTextFilterChange,
   onSelectedFilterChange,
   fitToPanel = true,
-}) => {
+}: Props<TData>) {
   const hasGroupedHeaders = columns.some((col) => col.group && col.groupLabel);
 
-  const applyFiltersExcludingColumn = (colKeyToExclude: string, rows: any[]) => {
-    let filtered = [...rows];
+  const applyFiltersExcludingColumn = useCallback(
+    (colKeyToExclude: string, rows: TData[]) => {
+      let filtered = [...rows];
 
-    Object.entries(textFilters).forEach(([key, text]) => {
-      if (key !== colKeyToExclude && text) {
-        filtered = filtered.filter((item) => {
-          const value = item[key];
-          return (
-            value != null &&
-            String(value).toLowerCase().includes(text.toLowerCase())
-          );
-        });
-      }
-    });
+      Object.entries(textFilters).forEach(([key, text]) => {
+        if (key !== colKeyToExclude && text) {
+          filtered = filtered.filter((item) => {
+            const value = getRowValue(item, key);
 
-    Object.entries(selectedFilters).forEach(([key, selectedVals]) => {
-      if (key !== colKeyToExclude && selectedVals.length) {
-        filtered = filtered.filter((item) => {
-          const value = item[key];
-          return value != null && selectedVals.includes(String(value));
-        });
-      }
-    });
+            return (
+              value != null &&
+              String(value).toLowerCase().includes(text.toLowerCase())
+            );
+          });
+        }
+      });
 
-    return filtered;
-  };
+      Object.entries(selectedFilters).forEach(([key, selectedVals]) => {
+        if (key !== colKeyToExclude && selectedVals.length) {
+          filtered = filtered.filter((item) => {
+            const value = getRowValue(item, key);
+
+            return value != null && selectedVals.includes(String(value));
+          });
+        }
+      });
+
+      return filtered;
+    },
+    [textFilters, selectedFilters]
+  );
 
   const uniqueValuesMap = useMemo(() => {
     const source = allData.length > 0 ? allData : [];
@@ -77,7 +90,7 @@ const Table: React.FC<Props> = ({
       const values = new Set<string>();
 
       filteredData.forEach((row) => {
-        const value = row[col.key];
+        const value = getRowValue(row, col.key);
 
         if (value !== undefined && value !== null) {
           values.add(String(value));
@@ -88,10 +101,10 @@ const Table: React.FC<Props> = ({
     });
 
     return map;
-  }, [columns, allData, textFilters, selectedFilters]);
+  }, [columns, allData, applyFiltersExcludingColumn]);
 
-  const headerGroups = useMemo<HeaderCellGroup[]>(() => {
-    const groups: HeaderCellGroup[] = [];
+  const headerGroups = useMemo<HeaderCellGroup<TData>[]>(() => {
+    const groups: HeaderCellGroup<TData>[] = [];
     let index = 0;
 
     while (index < columns.length) {
@@ -152,7 +165,10 @@ const Table: React.FC<Props> = ({
                     rowSpan={group.grouped ? 1 : 2}
                     style={
                       group.column?.width
-                        ? { width: group.column.width, minWidth: group.column.width }
+                        ? {
+                            width: group.column.width,
+                            minWidth: group.column.width,
+                          }
                         : undefined
                     }
                     className={
@@ -235,9 +251,9 @@ const Table: React.FC<Props> = ({
                 </td>
               </tr>
             ) : (
-              data.map((row, i) => (
+              data.map((row, index) => (
                 <tr
-                  key={i}
+                  key={index}
                   onClick={() => onRowClick?.(row)}
                   className={`${onRowClick ? 'clickable' : ''} ${
                     rowClassName ? rowClassName(row) : ''
@@ -252,7 +268,9 @@ const Table: React.FC<Props> = ({
                           : undefined
                       }
                     >
-                      {col.render ? col.render(row) : row[col.key] ?? '—'}
+                      {col.render
+                        ? col.render(row)
+                        : String(getRowValue(row, col.key) ?? '—')}
                     </td>
                   ))}
                 </tr>
@@ -263,6 +281,6 @@ const Table: React.FC<Props> = ({
       </div>
     </div>
   );
-};
+}
 
 export default Table;

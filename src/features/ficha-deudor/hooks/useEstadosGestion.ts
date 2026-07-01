@@ -1,13 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchEstadosGestion, fetchEstadosGestionHistoricos } from '../api/estadosGestionApi';
-import { useClientSideTable, type TextFilters, type SelectedFilters } from '../../../shared/hooks/useClientSideTable';
-import type { EstadoGestion, EstadoGestionCompleta } from '../../../shared/types';
+import {
+  fetchEstadosGestion,
+  fetchEstadosGestionHistoricos,
+} from '../api/estadosGestionApi';
+import {
+  useClientSideTable,
+  type TextFilters,
+  type SelectedFilters,
+} from '../../../shared/hooks/useClientSideTable';
+import type {
+  EstadoGestion,
+  EstadoGestionCompleta,
+} from '../../../shared/types/indexApi';
 
-// Re-exportar tipos para compatibilidad con los paneles
 export type { TextFilters, SelectedFilters };
 
 export interface UseEstadosGestionReturn {
-  // ─── Resumido ───
   allData: EstadoGestion[];
   filteredData: EstadoGestion[];
   paginatedData: EstadoGestion[];
@@ -25,7 +33,6 @@ export interface UseEstadosGestionReturn {
   onTextFilterChange: (columnKey: string, value: string) => void;
   onSelectedFilterChange: (columnKey: string, values: string[]) => void;
 
-  // ─── Expandido / Completo ───
   completo: EstadoGestionCompleta[];
   completoLoading: boolean;
   completoError: string | null;
@@ -43,9 +50,6 @@ export function useEstadosGestion(
   id_cartera: string,
   id_deudor: string
 ): UseEstadosGestionReturn {
-  // ═══════════════════════════════════════
-  // ESTADO: Resumido (ahora con hook genérico)
-  // ═══════════════════════════════════════
   const [allData, setAllData] = useState<EstadoGestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,18 +60,12 @@ export function useEstadosGestion(
     { initialPageSize: 10 }
   );
 
-  // ═══════════════════════════════════════
-  // ESTADO: Expandido / Completo (server-side, sin cambios)
-  // ═══════════════════════════════════════
   const [completo, setCompleto] = useState<EstadoGestionCompleta[]>([]);
   const [completoLoading, setCompletoLoading] = useState(false);
   const [completoError, setCompletoError] = useState<string | null>(null);
-  const [completoPageNumber, setCompletoPageNumber] = useState(1);
-  const [completoPageSize, setCompletoPageSize] = useState(50);
+  const [completoPageNumber, setCompletoPageNumberState] = useState(1);
+  const [completoPageSize, setCompletoPageSizeState] = useState(50);
 
-  // ═══════════════════════════════════════
-  // EFECTO: Cargar estados de gestión resumidos
-  // ═══════════════════════════════════════
   useEffect(() => {
     if (!id_cliente || !id_cartera || !id_deudor) return;
 
@@ -76,27 +74,40 @@ export function useEstadosGestion(
     const loadData = async () => {
       setIsLoading(true);
       setError(null);
+
       try {
-        const result = await fetchEstadosGestion(id_cliente, id_cartera, id_deudor);
+        const result = await fetchEstadosGestion(
+          id_cliente,
+          id_cartera,
+          id_deudor
+        );
+
         if (controller.signal.aborted) return;
+
         setAllData(result.resumido);
       } catch (err) {
         if (!controller.signal.aborted) {
-          setError(err instanceof Error ? err.message : 'Error cargando estados de gestión');
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Error cargando estados de gestión'
+          );
           setAllData([]);
         }
       } finally {
-        if (!controller.signal.aborted) setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
 
-    loadData();
-    return () => controller.abort();
+    void loadData();
+
+    return () => {
+      controller.abort();
+    };
   }, [id_cliente, id_cartera, id_deudor]);
 
-  // ═══════════════════════════════════════
-  // EFECTO: Cargar estados de gestión históricos (completo)
-  // ═══════════════════════════════════════
   useEffect(() => {
     if (!id_cliente || !id_cartera || !id_deudor) return;
 
@@ -105,6 +116,7 @@ export function useEstadosGestion(
     const loadCompleto = async () => {
       setCompletoLoading(true);
       setCompletoError(null);
+
       try {
         const result = await fetchEstadosGestionHistoricos(
           id_cliente,
@@ -113,85 +125,131 @@ export function useEstadosGestion(
           completoPageNumber,
           completoPageSize
         );
+
         if (controller.signal.aborted) return;
+
         setCompleto(result.completo);
       } catch (err) {
         if (!controller.signal.aborted) {
-          setCompletoError(err instanceof Error ? err.message : 'Error cargando estados de gestión históricos');
+          setCompletoError(
+            err instanceof Error
+              ? err.message
+              : 'Error cargando estados de gestión históricos'
+          );
           setCompleto([]);
         }
       } finally {
-        if (!controller.signal.aborted) setCompletoLoading(false);
+        if (!controller.signal.aborted) {
+          setCompletoLoading(false);
+        }
       }
     };
 
-    loadCompleto();
-    return () => controller.abort();
-  }, [id_cliente, id_cartera, id_deudor, completoPageNumber, completoPageSize]);
+    void loadCompleto();
 
-  // ═══════════════════════════════════════
-  // Resetear página completa cuando cambia su pageSize
-  // ═══════════════════════════════════════
-  useEffect(() => {
-    setCompletoPageNumber(1);
-  }, [completoPageSize]);
+    return () => {
+      controller.abort();
+    };
+  }, [
+    id_cliente,
+    id_cartera,
+    id_deudor,
+    completoPageNumber,
+    completoPageSize,
+  ]);
 
-  // ═══════════════════════════════════════
-  // Refetch Resumido
-  // ═══════════════════════════════════════
+  const setCompletoPageNumber = useCallback((page: number) => {
+    setCompletoPageNumberState(page);
+  }, []);
+
+  const setCompletoPageSize = useCallback((size: number) => {
+    setCompletoPageSizeState(size);
+    setCompletoPageNumberState(1);
+  }, []);
+
   const refetch = useCallback(() => {
     if (!id_cliente || !id_cartera || !id_deudor) return;
+
     const controller = new AbortController();
+
     setIsLoading(true);
     setError(null);
 
     fetchEstadosGestion(id_cliente, id_cartera, id_deudor)
       .then((result) => {
         if (controller.signal.aborted) return;
+
         setAllData(result.resumido);
       })
       .catch((err) => {
         if (!controller.signal.aborted) {
-          setError(err instanceof Error ? err.message : 'Error cargando estados de gestión');
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Error cargando estados de gestión'
+          );
           setAllData([]);
         }
       })
       .finally(() => {
-        if (!controller.signal.aborted) setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       });
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+    };
   }, [id_cliente, id_cartera, id_deudor]);
 
-  // ═══════════════════════════════════════
-  // Refetch Completo
-  // ═══════════════════════════════════════
   const refetchCompleto = useCallback(() => {
     if (!id_cliente || !id_cartera || !id_deudor) return;
+
     const controller = new AbortController();
+
     setCompletoLoading(true);
     setCompletoError(null);
 
-    fetchEstadosGestionHistoricos(id_cliente, id_cartera, id_deudor, completoPageNumber, completoPageSize)
+    fetchEstadosGestionHistoricos(
+      id_cliente,
+      id_cartera,
+      id_deudor,
+      completoPageNumber,
+      completoPageSize
+    )
       .then((result) => {
         if (controller.signal.aborted) return;
+
         setCompleto(result.completo);
       })
       .catch((err) => {
         if (!controller.signal.aborted) {
-          setCompletoError(err instanceof Error ? err.message : 'Error cargando estados de gestión históricos');
+          setCompletoError(
+            err instanceof Error
+              ? err.message
+              : 'Error cargando estados de gestión históricos'
+          );
           setCompleto([]);
         }
       })
       .finally(() => {
-        if (!controller.signal.aborted) setCompletoLoading(false);
+        if (!controller.signal.aborted) {
+          setCompletoLoading(false);
+        }
       });
 
-    return () => controller.abort();
-  }, [id_cliente, id_cartera, id_deudor, completoPageNumber, completoPageSize]);
+    return () => {
+      controller.abort();
+    };
+  }, [
+    id_cliente,
+    id_cartera,
+    id_deudor,
+    completoPageNumber,
+    completoPageSize,
+  ]);
 
   return {
-    // Resumido (desde useClientSideTable)
     allData,
     filteredData: table.filteredData,
     paginatedData: table.paginatedData,
@@ -209,14 +267,16 @@ export function useEstadosGestion(
     onTextFilterChange: table.onTextFilterChange,
     onSelectedFilterChange: table.onSelectedFilterChange,
 
-    // Expandido / Completo (sin cambios)
     completo,
     completoLoading,
     completoError,
     completoPageNumber,
     completoPageSize,
     completoTotalRecords: completo.length,
-    completoTotalPages: Math.max(1, Math.ceil(completo.length / completoPageSize)),
+    completoTotalPages: Math.max(
+      1,
+      Math.ceil(completo.length / completoPageSize)
+    ),
     setCompletoPageNumber,
     setCompletoPageSize,
     refetchCompleto,

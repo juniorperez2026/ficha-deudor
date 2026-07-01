@@ -8,10 +8,14 @@ import {
   TextAreaField,
 } from '../../../../../shared/components/ui';
 import { useModalForm } from '../../../../../shared/hooks/ui/useModalForm';
+import {
+  toBooleanValue,
+  toNumberValue,
+  toStringValue,
+} from '../../../../../shared/utils/formValueMappers';
 import type {
   DireccionEditFormData,
   DireccionByIdApi,
-  DireccionFormData,
 } from '../../../../../shared/types';
 
 import {
@@ -27,7 +31,7 @@ import {
   estadosDireccionOptions,
 } from '../../../mocks/catalogosDireccion';
 
-import { validateDireccionForm } from '../../../validations/direccionValidations';
+import { validateDireccionEditForm } from '../../../validations/direccionValidations';
 
 interface Props {
   isOpen: boolean;
@@ -51,36 +55,26 @@ const INITIAL_FORM: DireccionEditFormData = {
   estado: true,
 };
 
-const mapToFormData = (entity: DireccionByIdApi): DireccionEditFormData => ({
-  id: String(entity.nId_PersDirecc),
-  direccion: entity.cDirecc_Nomb ?? '',
-  departamento: entity.nId_Departamento ? String(entity.nId_Departamento) : '',
-  provincia: entity.nId_Provincia ? String(entity.nId_Provincia) : '',
-  distrito: entity.nId_Distrito ? String(entity.nId_Distrito) : '',
-  refUbicacion: entity.nId_PersRefUbi ? String(entity.nId_PersRefUbi) : '',
-  comentario: entity.cDirecc_Coment ?? '',
-  llegoDeBase: entity.bOrigen_Base ?? false,
-  tipoDeudor: entity.cTipoCoDeudor ?? '',
-  nombreAval: entity.nombreAval ?? '',
-  estado: entity.bEstado ?? true,
-});
-
-const validateModalEditarDireccion = (
-  data: DireccionEditFormData
-): Record<string, string> => {
-  const dataToValidate: DireccionFormData = {
-    direccion: data.direccion,
-    departamento: data.departamento,
-    provincia: data.provincia,
-    distrito: data.distrito,
-    refUbicacion: data.refUbicacion,
-    comentario: data.comentario,
-    llegoDeBase: data.llegoDeBase,
-    tipoDeudor: data.tipoDeudor,
-  };
-
-  return validateDireccionForm(dataToValidate);
+const toSelectIdValue = (value: unknown): string => {
+  return toNumberValue(value) ? toStringValue(value) : '';
 };
+
+const mapToFormData = (entity: DireccionByIdApi): DireccionEditFormData => ({
+  id: toStringValue(entity.nId_PersDirecc),
+  direccion: toStringValue(entity.cDirecc_Nomb),
+  departamento: toSelectIdValue(entity.nId_Departamento),
+  provincia: toSelectIdValue(entity.nId_Provincia),
+  distrito: toSelectIdValue(entity.nId_Distrito),
+  refUbicacion: toSelectIdValue(entity.nId_PersRefUbi),
+  comentario: toStringValue(entity.cDirecc_Coment),
+  llegoDeBase: toBooleanValue(entity.bOrigen_Base),
+  tipoDeudor: toStringValue(entity.cTipoCoDeudor),
+  nombreAval: toStringValue(entity.nombreAval),
+  estado:
+    entity.bEstado === null || entity.bEstado === undefined
+      ? true
+      : toBooleanValue(entity.bEstado),
+});
 
 const ModalEditarDireccion: React.FC<Props> = ({
   isOpen,
@@ -100,7 +94,7 @@ const ModalEditarDireccion: React.FC<Props> = ({
           onGuardar?.({ ...data, id: direccionId });
         }
       },
-      validate: validateModalEditarDireccion,
+      validate: validateDireccionEditForm,
       resetOnClose: true,
     });
 
@@ -243,7 +237,7 @@ const ModalEditarDireccion: React.FC<Props> = ({
           layout="inline"
           options={llegoDeBaseOptions}
           value={form.llegoDeBase}
-          onChange={(v) => handleChange('llegoDeBase', v)}
+          onChange={(v) => handleChange('llegoDeBase', toBooleanValue(v))}
           placeholder="---Seleccione---"
           error={errors.llegoDeBase}
         />
@@ -264,7 +258,7 @@ const ModalEditarDireccion: React.FC<Props> = ({
         layout="inline"
         options={estadosDireccionOptions}
         value={form.estado}
-        onChange={(v) => handleChange('estado', v)}
+        onChange={(v) => handleChange('estado', toBooleanValue(v))}
         placeholder="---Seleccione---"
       />
 
@@ -272,8 +266,8 @@ const ModalEditarDireccion: React.FC<Props> = ({
         <div className="error-summary">
           <strong>Por favor, corrija los siguientes errores:</strong>
           <ul>
-            {Object.values(errors).map((error, idx) => (
-              <li key={idx}>{error}</li>
+            {Object.values(errors).map((error) => (
+              <li key={error}>{error}</li>
             ))}
           </ul>
         </div>

@@ -1,4 +1,11 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+  useReducer,
+} from 'react';
 import {
   fetchDireccionesReferenciadas,
   createDireccion,
@@ -9,9 +16,22 @@ import {
   fetchDireccionUbicaciones,
   fetchDireccionById,
 } from '../api/direccionesReferenciadasApi';
-import type { DireccionReferenciada, DireccionFormData, DireccionEditFormData, Departamento, Provincia, Distrito, DireccionUbicacion, DireccionByIdApi } from '../../../shared/types';
+import type {
+  DireccionReferenciada,
+  DireccionFormData,
+  DireccionEditFormData,
+  Departamento,
+  Provincia,
+  Distrito,
+  DireccionUbicacion,
+  DireccionByIdApi,
+} from '../../../shared/types';
 import { useApiResource } from '../../../shared/hooks/useApiResource';
-import { useClientSideTable, type TextFilters, type SelectedFilters } from '../../../shared/hooks/useClientSideTable';
+import {
+  useClientSideTable,
+  type TextFilters,
+  type SelectedFilters,
+} from '../../../shared/hooks/useClientSideTable';
 
 export type { TextFilters, SelectedFilters };
 
@@ -37,6 +57,58 @@ interface UseDireccionesReferenciadasReturn {
   update: (id: string, formData: DireccionEditFormData) => Promise<void>;
 }
 
+interface DireccionByIdState {
+  data: DireccionByIdApi | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
+type DireccionByIdAction =
+  | { type: 'RESET' }
+  | { type: 'LOAD_START' }
+  | { type: 'LOAD_SUCCESS'; data: DireccionByIdApi }
+  | { type: 'LOAD_ERROR'; error: string };
+
+const direccionByIdInitialState: DireccionByIdState = {
+  data: null,
+  isLoading: false,
+  error: null,
+};
+
+function direccionByIdReducer(
+  state: DireccionByIdState,
+  action: DireccionByIdAction
+): DireccionByIdState {
+  switch (action.type) {
+    case 'RESET':
+      return direccionByIdInitialState;
+
+    case 'LOAD_START':
+      return {
+        ...state,
+        isLoading: true,
+        error: null,
+      };
+
+    case 'LOAD_SUCCESS':
+      return {
+        data: action.data,
+        isLoading: false,
+        error: null,
+      };
+
+    case 'LOAD_ERROR':
+      return {
+        data: null,
+        isLoading: false,
+        error: action.error,
+      };
+
+    default:
+      return state;
+  }
+}
+
 export function useDireccionesReferenciadas(
   id_cliente: string,
   id_deudor: string,
@@ -46,8 +118,10 @@ export function useDireccionesReferenciadas(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Memoizar dependencias de reset para evitar referencias nuevas en cada render
-  const resetDeps = useMemo(() => [id_cliente, id_deudor] as const, [id_cliente, id_deudor]);
+  const resetDeps = useMemo(
+    () => [id_cliente, id_deudor] as const,
+    [id_cliente, id_deudor]
+  );
 
   const table = useClientSideTable<DireccionReferenciada>(
     allData,
@@ -55,16 +129,16 @@ export function useDireccionesReferenciadas(
     { initialPageSize: 10 }
   );
 
-  // Flag para evitar setState si el componente se desmonta durante un refetch manual
   const isMountedRef = useRef(true);
+
   useEffect(() => {
     isMountedRef.current = true;
+
     return () => {
       isMountedRef.current = false;
     };
   }, []);
 
-  // ─── Efecto: Cargar todos los registros ───
   useEffect(() => {
     if (!id_cliente || !id_deudor) return;
 
@@ -73,25 +147,37 @@ export function useDireccionesReferenciadas(
     const loadData = async () => {
       setIsLoading(true);
       setError(null);
+
       try {
-        const result = await fetchDireccionesReferenciadas(id_cliente, id_deudor);
+        const result = await fetchDireccionesReferenciadas(
+          id_cliente,
+          id_deudor
+        );
+
         if (controller.signal.aborted) return;
+
         setAllData(result);
       } catch (err) {
         if (!controller.signal.aborted) {
-          setError(err instanceof Error ? err.message : 'Error cargando direcciones');
+          setError(
+            err instanceof Error ? err.message : 'Error cargando direcciones'
+          );
           setAllData([]);
         }
       } finally {
-        if (!controller.signal.aborted) setIsLoading(false);
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     };
 
-    loadData();
-    return () => controller.abort();
+    void loadData();
+
+    return () => {
+      controller.abort();
+    };
   }, [id_cliente, id_deudor]);
 
-  // ─── Refetch ───
   const refetch = useCallback(() => {
     if (!id_cliente || !id_deudor) return;
 
@@ -101,27 +187,33 @@ export function useDireccionesReferenciadas(
     fetchDireccionesReferenciadas(id_cliente, id_deudor)
       .then((result) => {
         if (!isMountedRef.current) return;
+
         setAllData(result);
       })
       .catch((err) => {
         if (!isMountedRef.current) return;
-        setError(err instanceof Error ? err.message : 'Error cargando direcciones');
+
+        setError(
+          err instanceof Error ? err.message : 'Error cargando direcciones'
+        );
         setAllData([]);
       })
       .finally(() => {
         if (!isMountedRef.current) return;
+
         setIsLoading(false);
       });
   }, [id_cliente, id_deudor]);
 
-  // ─── CREATE ───
   const create = useCallback(
     async (formData: DireccionFormData) => {
       try {
         await createDireccion(id_cliente, id_deudor, id_usuario, formData);
         await refetch();
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Error al crear dirección';
+        const msg =
+          err instanceof Error ? err.message : 'Error al crear dirección';
+
         setError(msg);
         throw err;
       }
@@ -129,14 +221,15 @@ export function useDireccionesReferenciadas(
     [id_cliente, id_deudor, id_usuario, refetch]
   );
 
-  // ─── UPDATE ───
   const update = useCallback(
     async (id: string, formData: DireccionEditFormData) => {
       try {
         await updateDireccion(id_cliente, id_deudor, id_usuario, id, formData);
         await refetch();
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Error al actualizar dirección';
+        const msg =
+          err instanceof Error ? err.message : 'Error al actualizar dirección';
+
         setError(msg);
         throw err;
       }
@@ -167,40 +260,51 @@ export function useDireccionesReferenciadas(
   };
 }
 
-// ─── GET por ID ───
 export function useDireccionById(idDireccion: string | null) {
-  const [data, setData] = useState<DireccionByIdApi | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(
+    direccionByIdReducer,
+    direccionByIdInitialState
+  );
 
   useEffect(() => {
     if (!idDireccion) {
-      setData(null);
-      setIsLoading(false);
-      setError(null);
+      dispatch({ type: 'RESET' });
       return;
     }
 
     const controller = new AbortController();
-    setIsLoading(true);
-    setError(null);
+
+    dispatch({ type: 'LOAD_START' });
 
     fetchDireccionById(idDireccion, controller.signal)
-      .then(setData)
-      .catch((err) => {
-        if (err.name !== 'AbortError') {
-          setError(err.message);
-          setData(null);
-        }
+      .then((data) => {
+        if (controller.signal.aborted) return;
+
+        dispatch({
+          type: 'LOAD_SUCCESS',
+          data,
+        });
       })
-      .finally(() => {
-        if (!controller.signal.aborted) setIsLoading(false);
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          return;
+        }
+
+        const message =
+          err instanceof Error ? err.message : 'Error cargando dirección';
+
+        dispatch({
+          type: 'LOAD_ERROR',
+          error: message,
+        });
       });
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+    };
   }, [idDireccion]);
 
-  return { data, isLoading, error };
+  return state;
 }
 
 export function useDepartamentos() {
@@ -218,6 +322,7 @@ export function useProvincias(idDepartamento: string | null) {
       if (!idDepartamento) {
         return Promise.resolve([] as Provincia[]);
       }
+
       return fetchProvincias(idDepartamento, signal);
     },
     [idDepartamento]
@@ -235,6 +340,7 @@ export function useDistritos(
       if (!idDepartamento || !idProvincia) {
         return Promise.resolve([] as Distrito[]);
       }
+
       return fetchDistritos(idDepartamento, idProvincia, signal);
     },
     [idDepartamento, idProvincia]

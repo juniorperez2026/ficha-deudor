@@ -1,9 +1,11 @@
 import React, {
-  createContext,
   useCallback,
   useMemo,
   useState,
 } from 'react';
+
+import { AuthContext } from './authContextValue';
+import { login as loginApi } from '../api/authApi';
 
 import type {
   AuthContextValue,
@@ -13,6 +15,8 @@ import type {
   LoginResponse,
 } from '../types';
 
+const AUTH_STORAGE_KEY = 'ficha_deudor_auth_state';
+
 const initialState: AuthState = {
   isAuthenticated: false,
   usuario: null,
@@ -21,7 +25,59 @@ const initialState: AuthState = {
   error: null,
 };
 
-export const AuthContext = createContext<AuthContextValue | null>(null);
+function loadStoredAuthState(): AuthState {
+  try {
+    const rawState = localStorage.getItem(AUTH_STORAGE_KEY);
+
+    if (!rawState) {
+      return initialState;
+    }
+
+    const parsedState = JSON.parse(rawState) as Partial<AuthState>;
+
+    if (!parsedState.usuario) {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      return initialState;
+    }
+
+    return {
+      ...initialState,
+      isAuthenticated: true,
+      usuario: parsedState.usuario,
+      clienteSeleccionada: parsedState.clienteSeleccionada ?? null,
+      isLoading: false,
+      error: null,
+    };
+  } catch {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    return initialState;
+  }
+}
+
+function saveStoredAuthState(state: AuthState) {
+  try {
+    if (!state.usuario) {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      return;
+    }
+
+    const stateToStore: AuthState = {
+      ...state,
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+    };
+
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(stateToStore));
+  } catch {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+  }
+}
+
+function clearStoredAuthState() {
+  localStorage.removeItem('auth_token');
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+}
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -36,7 +92,7 @@ const buildLoginErrorResponse = (message: string): LoginResponse => {
 };
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [state, setState] = useState<AuthState>(initialState);
+  const [state, setState] = useState<AuthState>(() => loadStoredAuthState());
 
   const login = useCallback(
     async (payload: LoginPayload): Promise<LoginResponse> => {
@@ -47,15 +103,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }));
 
       try {
-        const { login: loginApi } = await import('../api/authApi');
-
         const response = await loginApi(payload);
 
         if (!response.success || !response.usuario) {
+          clearStoredAuthState();
+
           setState((prev) => ({
             ...prev,
             isAuthenticated: false,
             usuario: null,
+            clienteSeleccionada: null,
             isLoading: false,
             error: response.message,
           }));
@@ -63,13 +120,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return response;
         }
 
-        setState((prev) => ({
-          ...prev,
-          isAuthenticated: true,
-          usuario: response.usuario,
-          isLoading: false,
-          error: null,
-        }));
+        setState((prev) => {
+          const nextState: AuthState = {
+            ...prev,
+            isAuthenticated: true,
+            usuario: response.usuario,
+            clienteSeleccionada: null,
+            isLoading: false,
+            error: null,
+          };
+
+          saveStoredAuthState(nextState);
+
+          return nextState;
+        });
 
         return response;
       } catch (error) {
@@ -78,10 +142,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             ? error.message
             : 'Error al iniciar sesión.';
 
+        clearStoredAuthState();
+
         setState((prev) => ({
           ...prev,
           isAuthenticated: false,
           usuario: null,
+          clienteSeleccionada: null,
           isLoading: false,
           error: message,
         }));
@@ -93,22 +160,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   );
 
   const logout = useCallback(() => {
+    clearStoredAuthState();
     setState(initialState);
-    localStorage.removeItem('auth_token');
   }, []);
 
   const seleccionarCliente = useCallback((cliente: Cliente) => {
-    setState((prev) => ({
-      ...prev,
-      clienteSeleccionada: cliente,
-    }));
+    setState((prev) => {
+      const nextState: AuthState = {
+        ...prev,
+        isAuthenticated: !!prev.usuario,
+        clienteSeleccionada: cliente,
+        isLoading: false,
+        error: null,
+      };
+
+      saveStoredAuthState(nextState);
+
+      return nextState;
+    });
   }, []);
 
   const clearError = useCallback(() => {
-    setState((prev) => ({
-      ...prev,
-      error: null,
-    }));
+    setState((prev) => {
+      const nextState: AuthState = {
+        ...prev,
+        error: null,
+      };
+
+      if (nextState.usuario) {
+        saveStoredAuthState(nextState);
+      }
+
+      return nextState;
+    });
   }, []);
 
   const value = useMemo<AuthContextValue>(

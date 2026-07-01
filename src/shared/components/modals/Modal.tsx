@@ -49,39 +49,53 @@ const Modal: React.FC<ModalProps> = ({
   closeOnEsc = true,
 }) => {
   const modalIdRef = useRef<number>(0);
-  const [zIndex, setZIndex] = React.useState(1000);
   const scrollYRef = useRef<number>(0);
+  const overlayRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      modalIdRef.current = ++modalIdCounter;
-      modalStack.push(modalIdRef.current);
-      const newZIndex = 1000 + (modalStack.length - 1) * 10;
-      setZIndex(newZIndex);
+    if (!isOpen) return;
 
-      // Guardar scroll actual y bloquear body
-      scrollYRef.current = window.scrollY;
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollYRef.current}px`;
-      document.body.style.left = '0';
-      document.body.style.right = '0';
-      document.body.style.overflow = 'hidden';
-      document.body.style.width = '100%';
+    modalIdRef.current = ++modalIdCounter;
+    modalStack.push(modalIdRef.current);
 
-      return () => {
-        const index = modalStack.indexOf(modalIdRef.current);
-        if (index > -1) modalStack.splice(index, 1);
-        if (modalStack.length === 0) {
-          document.body.style.position = '';
-          document.body.style.top = '';
-          document.body.style.left = '';
-          document.body.style.right = '';
-          document.body.style.overflow = '';
-          document.body.style.width = '';
-          window.scrollTo(0, scrollYRef.current);
-        }
-      };
+    const newZIndex = 9999 + (modalStack.length - 1) * 10;
+
+    if (overlayRef.current) {
+      overlayRef.current.style.zIndex = String(newZIndex);
     }
+
+    if (containerRef.current) {
+      containerRef.current.style.zIndex = String(newZIndex + 1);
+    }
+
+    scrollYRef.current = window.scrollY;
+
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollYRef.current}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.overflow = 'hidden';
+    document.body.style.width = '100%';
+
+    return () => {
+      const index = modalStack.indexOf(modalIdRef.current);
+
+      if (index > -1) {
+        modalStack.splice(index, 1);
+      }
+
+      if (modalStack.length === 0) {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.overflow = '';
+        document.body.style.width = '';
+
+        window.scrollTo(0, scrollYRef.current);
+      }
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -90,6 +104,7 @@ const Modal: React.FC<ModalProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         const lastModalId = modalStack[modalStack.length - 1];
+
         if (lastModalId === modalIdRef.current) {
           e.stopPropagation();
           onClose();
@@ -98,34 +113,42 @@ const Modal: React.FC<ModalProps> = ({
     };
 
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, [isOpen, onClose, closeOnEsc]);
 
   if (!isOpen) return null;
 
-  // Renderizar el modal en un portal hacia document.body
   return createPortal(
     <div
+      ref={overlayRef}
       className="modal-overlay open"
-      style={{ zIndex: 9999 + (modalStack.length - 1) * 10 }}
+      style={{ zIndex: 9999 }}
       onClick={onClose}
     >
       <div
+        ref={containerRef}
         className="modal-container"
-        style={{ ...sizeMap[size], zIndex: 10000 + (modalStack.length - 1) * 10 }}
+        style={{ ...sizeMap[size], zIndex: 10000 }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
           <span className="modal-title">{title}</span>
+
           <button className="modal-close" onClick={onClose} type="button">
             ✕
           </button>
         </div>
+
         <div className="modal-body">
           {children ?? (
             <div style={{ textAlign: 'center' }}>
               <span style={{ fontSize: '30px' }}>📋</span>
-              <p style={{ fontSize: '14px', fontWeight: 500 }}>Módulo en construcción</p>
+              <p style={{ fontSize: '14px', fontWeight: 500 }}>
+                Módulo en construcción
+              </p>
               <small style={{ fontSize: '11px', color: '#64748b' }}>
                 Esta sección estará disponible próximamente
               </small>
