@@ -1,5 +1,3 @@
-// src/features/dashboard/pages/DashboardPage.tsx
-
 import React, { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -33,7 +31,7 @@ export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const { usuario, clienteSeleccionada } = useAuth();
+  const { usuario, clienteSeleccionada, logout } = useAuth();
 
   const idCliente =
     searchParams.get('id_cliente') ||
@@ -117,7 +115,6 @@ export const DashboardPage: React.FC = () => {
         width: '120px',
         render: (row: DeudorDashboard) => formatMoney(row.saldo),
       },
-
       {
         key: 'fechaUltimaGestionCALL',
         label: 'Ult. Gestión',
@@ -145,7 +142,6 @@ export const DashboardPage: React.FC = () => {
         groupLabel: 'Gestión Call',
         width: '90px',
       },
-
       {
         key: 'fechaUltimaGestionCAMPO',
         label: 'Ult. Gestión',
@@ -173,7 +169,6 @@ export const DashboardPage: React.FC = () => {
         groupLabel: 'Gestión Campo',
         width: '90px',
       },
-
       {
         key: 'fechaPromesa',
         label: 'Fecha Promesa',
@@ -193,6 +188,11 @@ export const DashboardPage: React.FC = () => {
     ],
     []
   );
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
 
   const handleGoToFichaDeudor = (row: DeudorDashboard) => {
     const queryParams = new URLSearchParams({
@@ -236,6 +236,14 @@ export const DashboardPage: React.FC = () => {
           <span>
             <strong>Cliente:</strong> {clienteSeleccionada?.nombre}
           </span>
+
+          <button
+            type="button"
+            className="dashboard-header__logout"
+            onClick={handleLogout}
+          >
+            Cerrar sesión
+          </button>
         </div>
       </header>
 

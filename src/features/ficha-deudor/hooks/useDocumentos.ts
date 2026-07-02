@@ -1,32 +1,26 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+
 import {
   fetchColumnas,
   fetchBotones,
   fetchAllGestiones,
 } from '../api/gestionesApi';
+
 import {
   useClientSideTable,
   type TextFilters,
   type SelectedFilters,
 } from '../../../shared/hooks/useClientSideTable';
+
 import type {
   ColumnApi,
   DocumentoApi,
   BotonApi,
 } from '../../../shared/types/indexApi';
 
-export type { TextFilters, SelectedFilters };
+import { enrichDocumentoWithDynamicColumns } from '../utils/documentosDynamicKeys';
 
-const STATIC_KEYS = [
-  'nId_DocxCobrar',
-  'mejorStatus',
-  'nId_Moneda',
-  'bEstado',
-  'nZona',
-  'bSelected',
-  'nId_Estrategia',
-  'nId_Cartera',
-];
+export type { TextFilters, SelectedFilters };
 
 interface UseDocumentosReturn {
   columns: ColumnApi[];
@@ -49,34 +43,6 @@ interface UseDocumentosReturn {
   onSelectedFilterChange: (columnKey: string, values: string[]) => void;
 }
 
-function enrichWithDynamicKeys(
-  data: DocumentoApi[],
-  columns: ColumnApi[]
-): DocumentoApi[] {
-  if (!columns.length || !data.length) return data;
-
-  return data.map((row) => {
-    const allKeys = Object.keys(row);
-    const dynamicKeys = allKeys.filter((key) => !STATIC_KEYS.includes(key));
-    const enriched: DocumentoApi = { ...row };
-
-    columns.forEach((col) => {
-      const match = col.key.match(/dyn_(\d+)/);
-
-      if (match) {
-        const index = parseInt(match[1], 10);
-        const fieldName = dynamicKeys[index];
-
-        if (fieldName !== undefined) {
-          enriched[col.key] = row[fieldName];
-        }
-      }
-    });
-
-    return enriched;
-  });
-}
-
 export function useDocumentos(
   id_cliente: string,
   id_cartera: string,
@@ -94,7 +60,7 @@ export function useDocumentos(
   const [dataError, setDataError] = useState<string | null>(null);
 
   const allData = useMemo(
-    () => enrichWithDynamicKeys(rawData, columns),
+    () => enrichDocumentoWithDynamicColumns(rawData, columns),
     [rawData, columns]
   );
 
@@ -194,34 +160,22 @@ export function useDocumentos(
   const refetch = useCallback(() => {
     if (!id_cliente || !id_cartera || !id_deudor) return;
 
-    let cancelled = false;
-
     setDataLoading(true);
     setDataError(null);
 
     fetchAllGestiones(id_cliente, id_cartera, id_deudor)
       .then((result) => {
-        if (cancelled) return;
-
         setRawData(result);
       })
       .catch((err) => {
-        if (!cancelled) {
-          setDataError(
-            err instanceof Error ? err.message : 'Error cargando documentos'
-          );
-          setRawData([]);
-        }
+        setDataError(
+          err instanceof Error ? err.message : 'Error cargando documentos'
+        );
+        setRawData([]);
       })
       .finally(() => {
-        if (!cancelled) {
-          setDataLoading(false);
-        }
+        setDataLoading(false);
       });
-
-    return () => {
-      cancelled = true;
-    };
   }, [id_cliente, id_cartera, id_deudor]);
 
   const isLoading = metaLoading || dataLoading;

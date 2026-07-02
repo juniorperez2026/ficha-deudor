@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useFichaDeudorParams } from '../hooks/useFichaDeudorParams';
 import DeudorHeader from '../components/ficha/DeudorHeader';
 import AccionesRapidas from '../components/ficha/AccionesRapidas';
@@ -21,17 +22,18 @@ interface FichaContentProps {
   id_usuario: string;
 }
 
-const FichaContent: React.FC<FichaContentProps> = ({ 
-  id_cliente, 
-  id_cartera, 
-  id_deudor, 
-  id_contrato, 
-  id_usuario 
+const FichaContent: React.FC<FichaContentProps> = ({
+  id_cliente,
+  id_cartera,
+  id_deudor,
+  id_contrato,
+  id_usuario,
 }) => {
-  const { usuario, clienteSeleccionada } = useAuth();
+  const navigate = useNavigate();
+  const { usuario, clienteSeleccionada, logout } = useAuth();
   const [contacto, setContacto] = useState('');
   const [panelActivo, setPanelActivo] = useState<string | null>(null);
-  
+
   const { data: deudorData } = useDeudorHeader(id_cliente, id_cartera, id_deudor);
 
   const handleGestionSubmit = () => {
@@ -40,6 +42,11 @@ const FichaContent: React.FC<FichaContentProps> = ({
 
   const handleTogglePanel = (accion: string) => {
     setPanelActivo((actual) => (actual === accion ? null : accion));
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
   };
 
   return (
@@ -65,13 +72,21 @@ const FichaContent: React.FC<FichaContentProps> = ({
             <span>
               <strong>Cliente:</strong> {clienteSeleccionada?.nombre}
             </span>
+
+            <button
+              type="button"
+              className="dashboard-header__logout"
+              onClick={handleLogout}
+            >
+              Cerrar sesión
+            </button>
           </div>
         </header>
 
         <main className="ficha-main ficha-main--two-columns">
           <aside className="ficha-sidebar">
             {deudorData && (
-              <DeudorHeader 
+              <DeudorHeader
                 id_cliente={id_cliente}
                 id_cartera={id_cartera}
                 id_deudor={id_deudor}
@@ -80,20 +95,60 @@ const FichaContent: React.FC<FichaContentProps> = ({
                 compact={true}
               />
             )}
-            <AccionesRapidas 
-              panelActivo={panelActivo} 
-              onTogglePanel={handleTogglePanel} 
+            <AccionesRapidas
+              panelActivo={panelActivo}
+              onTogglePanel={handleTogglePanel}
             />
           </aside>
-          
+
           <div className="ficha-content">
-            {deudorData && (<DocumentosTable id_cliente={id_cliente} id_cartera={id_cartera} id_deudor={id_deudor} id_contrato={id_contrato} id_usuario={id_usuario} data={deudorData}/>)}
-            <PanelDatosAdicionales isActive={panelActivo === 'DATOS ADICIONALES'} id_cliente={id_cliente} id_cartera={id_cartera} id_deudor={id_deudor}/>
-            <PanelTelefonosReferenciados isActive={panelActivo === 'TELÉFONOS REFERENCIADOS'} id_cliente={id_cliente} id_deudor={id_deudor} id_usuario={id_usuario}/>
-            <PanelDireccionesReferenciadas isActive={panelActivo === 'DIRECCIONES REFERENCIADAS'} id_cliente={id_cliente} id_deudor={id_deudor} id_usuario={id_usuario} />
-            <PanelGestionRealizada isActive={panelActivo === 'GESTIÓN REALIZADA'} id_cliente={id_cliente} id_cartera={id_cartera} id_deudor={id_deudor} id_usuario={id_usuario}/>
-            <PanelEstadoGestionRealizada isActive={panelActivo === 'ESTADO DE GESTIÓN REALIZADA'} id_cliente={id_cliente} id_cartera={id_cartera} id_deudor={id_deudor}/>
-            <FichaGestion onSubmit={handleGestionSubmit} idCliente={id_cliente} idCartera={id_cartera} idContrato={id_contrato}/>
+            {deudorData && (
+              <DocumentosTable
+                id_cliente={id_cliente}
+                id_cartera={id_cartera}
+                id_deudor={id_deudor}
+                id_contrato={id_contrato}
+                id_usuario={id_usuario}
+                data={deudorData}
+              />
+            )}
+            <PanelDatosAdicionales
+              isActive={panelActivo === 'DATOS ADICIONALES'}
+              id_cliente={id_cliente}
+              id_cartera={id_cartera}
+              id_deudor={id_deudor}
+            />
+            <PanelTelefonosReferenciados
+              isActive={panelActivo === 'TELÉFONOS REFERENCIADOS'}
+              id_cliente={id_cliente}
+              id_deudor={id_deudor}
+              id_usuario={id_usuario}
+            />
+            <PanelDireccionesReferenciadas
+              isActive={panelActivo === 'DIRECCIONES REFERENCIADAS'}
+              id_cliente={id_cliente}
+              id_deudor={id_deudor}
+              id_usuario={id_usuario}
+            />
+            <PanelGestionRealizada
+              isActive={panelActivo === 'GESTIÓN REALIZADA'}
+              id_cliente={id_cliente}
+              id_cartera={id_cartera}
+              id_deudor={id_deudor}
+              id_usuario={id_usuario}
+            />
+            <PanelEstadoGestionRealizada
+              isActive={panelActivo === 'ESTADO DE GESTIÓN REALIZADA'}
+              id_cliente={id_cliente}
+              id_cartera={id_cartera}
+              id_deudor={id_deudor}
+            />
+            <FichaGestion
+              onSubmit={handleGestionSubmit}
+              idCliente={id_cliente}
+              idCartera={id_cartera}
+              idContrato={id_contrato}
+            />
           </div>
         </main>
       </div>
@@ -102,7 +157,6 @@ const FichaContent: React.FC<FichaContentProps> = ({
 };
 
 const FichaDeudor: React.FC = () => {
-  // ← NUEVO: Usar useSearchParams en lugar de ParamGuard
   const {
     params,
     hasRequiredParams,
@@ -117,7 +171,7 @@ const FichaDeudor: React.FC = () => {
     id_contrato,
     id_usuario,
   } = params;
-  // Validar que todos los parámetros existan
+
   if (!hasRequiredParams) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
@@ -155,7 +209,7 @@ const FichaDeudor: React.FC = () => {
   }
 
   return (
-    <FichaContent 
+    <FichaContent
       id_cliente={id_cliente}
       id_cartera={id_cartera}
       id_deudor={id_deudor}

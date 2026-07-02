@@ -1,14 +1,18 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+
 import Table from '../../../../shared/components/table/Table';
 import Modal from '../../../../shared/components/modals/Modal';
 import Paginacion from '../../../../shared/components/ui/Paginacion';
 import { useDocumentos, openPopup } from '../../hooks/useDocumentos';
+
 import type {
   DocumentoApi,
   ColumnApi,
   BotonApi,
   DeudorInfo,
 } from '../../../../shared/types/indexApi';
+
+import { getDocumentoColumnValue } from '../../utils/documentosDynamicKeys';
 
 interface Props {
   id_cliente: string;
@@ -22,52 +26,20 @@ interface Props {
 
 // ─── Anchos fijos por columna conocida ───
 const COLUMN_WIDTHS: Record<string, string> = {
-  dyn_0: '120px',  // Tramo
-  dyn_1: '80px',   // Id
-  dyn_2: '160px',  // Documento
-  dyn_3: '100px',  // Estado
-  dyn_4: '120px',  // Vencimiento
-  dyn_5: '75px',   // Mon.
-  dyn_6: '120px',  // Importe
-  dyn_7: '120px',  // Deuda
+  dyn_0: '120px', // Tramo
+  dyn_1: '80px', // Id
+  dyn_2: '160px', // Documento
+  dyn_3: '100px', // Estado
+  dyn_4: '120px', // Vencimiento
+  dyn_5: '75px', // Mon.
+  dyn_6: '120px', // Importe
+  dyn_7: '120px', // Deuda
 };
 
 // ─── Configuración para columnas dinámicas sin ancho fijo ───
 const MIN_DYNAMIC_COLUMN_WIDTH = 90;
 const CHAR_WIDTH_PX = 8;
 const CELL_EXTRA_WIDTH_PX = 32;
-
-const STATIC_DOCUMENTO_KEYS = [
-  'nId_DocxCobrar',
-  'mejorStatus',
-  'nId_Moneda',
-  'bEstado',
-  'nZona',
-  'bSelected',
-  'nId_Estrategia',
-  'nId_Cartera',
-];
-
-const getDocumentoColumnValue = (
-  row: DocumentoApi,
-  column: ColumnApi
-): unknown => {
-  const allKeys = Object.keys(row);
-  const dynamicKeys = allKeys.filter((key) => !STATIC_DOCUMENTO_KEYS.includes(key));
-
-  const match = column.key.match(/dyn_(\d+)/);
-
-  if (!match) {
-    return row[column.key];
-  }
-
-  const index = parseInt(match[1], 10);
-  const fieldName = dynamicKeys[index];
-
-  if (!fieldName) return undefined;
-
-  return row[fieldName];
-};
 
 const getTextLengthForWidth = (
   value: unknown,
@@ -102,7 +74,6 @@ const calculateDynamicColumnWidth = (
   const maxContentLength = rows.reduce((maxLength, row) => {
     const value = getDocumentoColumnValue(row, column);
     const valueLength = getTextLengthForWidth(value, column);
-
     return Math.max(maxLength, valueLength);
   }, column.label.length);
 
@@ -157,6 +128,7 @@ const DocumentosTable: React.FC<Props> = ({
       const nombre = encodeURIComponent(data.nombreRazonSocial);
       const documento = encodeURIComponent(data.dniRuc);
       const url = `${boton.popupUrl}?nombre=${nombre}&documento=${documento}`;
+
       openPopup(url, boton.label, 1500, 600);
     } else {
       openModal(boton.label);
@@ -165,13 +137,13 @@ const DocumentosTable: React.FC<Props> = ({
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
-
   const scrollRef = useRef<HTMLDivElement>(null);
   const [puedeScrollIzq, setPuedeScrollIzq] = useState(false);
   const [puedeScrollDer, setPuedeScrollDer] = useState(false);
 
   const verificarScroll = () => {
     const el = scrollRef.current;
+
     if (!el) return;
 
     setPuedeScrollIzq(el.scrollLeft > 0);
@@ -182,6 +154,7 @@ const DocumentosTable: React.FC<Props> = ({
     verificarScroll();
 
     const el = scrollRef.current;
+
     if (!el) return;
 
     el.addEventListener('scroll', verificarScroll);
@@ -195,6 +168,7 @@ const DocumentosTable: React.FC<Props> = ({
 
   const scroll = (direccion: 'izq' | 'der') => {
     const el = scrollRef.current;
+
     if (!el) return;
 
     el.scrollBy({

@@ -19,7 +19,6 @@ export class ApiError extends Error {
 
   constructor(message: string, status: number, data?: unknown) {
     super(message);
-
     this.name = "ApiError";
     this.status = status;
     this.data = data;
@@ -74,14 +73,6 @@ async function normalizeApiError(response: Response): Promise<ApiError> {
   const errorData = await parseResponseData(response);
   const message = getErrorMessage(errorData);
 
-  if (import.meta.env.DEV) {
-    console.error("API error:", {
-      status: response.status,
-      endpoint: response.url,
-      data: errorData,
-    });
-  }
-
   return new ApiError(message, response.status, errorData);
 }
 
@@ -100,6 +91,7 @@ export async function apiClient<T>(
 
   if (useMock && mock) {
     await new Promise((resolve) => setTimeout(resolve, 300));
+
     return await mock();
   }
 

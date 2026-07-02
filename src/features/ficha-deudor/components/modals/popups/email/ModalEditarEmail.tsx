@@ -1,26 +1,32 @@
-import React from 'react';
-
+import React, { useState } from 'react';
 import { ModalFormLayout } from '../../../layout/ModalFormLayout';
+
 import { FormGrid } from '../../../../../../shared/components/ui/FormGrid';
+
 import {
   InputField,
   SelectField,
   TextAreaField,
 } from '../../../../../../shared/components/ui';
+
 import { useModalForm } from '../../../../../../shared/hooks/ui/useModalForm';
+
 import { useEmailById, useEmailStatuses } from '../../../../hooks/popups/useEmailsByDeudor';
 import type { EmailEditFormData, EmailByIdApi, DeudorInfo } from '../../../../../../shared/types';
+
 import {
   prioridadesOptions,
   estadosEmailOptions,
 } from '../../../../mocks/catalogoEmail';
+
 import { validateEmailEditForm } from '../../../../validations/popups/emailValidations';
+import { getErrorMessage } from '../../../../utils/getErrorMessage';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   emailId: string | null;
-  onGuardar?: (data: EmailEditFormData) => void;
+  onGuardar?: (data: EmailEditFormData) => void | Promise<void>;
   deudorData?: DeudorInfo | null;
 }
 
@@ -43,7 +49,7 @@ const mapApiToFormData = (api: EmailByIdApi): EmailEditFormData => ({
   prioridad: api.nEmail_Prioridad ? String(api.nEmail_Prioridad) : '',
   estado: api.bEstado ?? true,
   status: api.nId_PersEmailOpe ? String(api.nId_PersEmailOpe) : '',
-  dFecRegistro: api.dFecRegistro ?? '',  // ← Guardar fecha original
+  dFecRegistro: api.dFecRegistro ?? '',
 });
 
 const ModalEditarEmail: React.FC<Props> = ({
@@ -53,6 +59,8 @@ const ModalEditarEmail: React.FC<Props> = ({
   onGuardar,
   deudorData,
 }) => {
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   const {
     data: emailApi,
     isLoading: isLoadingEmail,
@@ -71,18 +79,50 @@ const ModalEditarEmail: React.FC<Props> = ({
       label: s.nombre,
     })) ?? [];
 
-  const { form, errors, handleChange, handleSubmit, handleCancel } =
-    useModalForm<EmailEditFormData, EmailByIdApi>({
-      initialForm: INITIAL_FORM,
-      entity: emailApi,
-      mapEntityToForm: mapApiToFormData,
-      onClose,
-      onSubmit: (data) => {
-        onGuardar?.(data);
-      },
-      validate: validateEmailEditForm,
-      resetOnClose: true,
-    });
+  const {
+    form,
+    errors,
+    setErrors,
+    handleChange,
+    handleCancel,
+    resetForm,
+  } = useModalForm<EmailEditFormData, EmailByIdApi>({
+    initialForm: INITIAL_FORM,
+    entity: emailApi,
+    mapEntityToForm: mapApiToFormData,
+    onClose,
+    onSubmit: () => undefined,
+    validate: validateEmailEditForm,
+    resetOnClose: true,
+  });
+
+  const handleClose = () => {
+    setSubmitError(null);
+    handleCancel();
+  };
+
+  const submitEmail = async () => {
+    const validationErrors = validateEmailEditForm(form);
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    setSubmitError(null);
+
+    try {
+      await onGuardar?.(form);
+      resetForm();
+      onClose();
+    } catch (err) {
+      setSubmitError(getErrorMessage(err, 'No se pudo guardar la edición del email. Intente nuevamente.'));
+    }
+  };
+
+  const handleSubmitEmail = () => {
+    void submitEmail();
+  };
 
   if (!isOpen || !emailId) return null;
 
@@ -91,7 +131,7 @@ const ModalEditarEmail: React.FC<Props> = ({
       <ModalFormLayout
         isOpen={isOpen}
         title="EDITAR EMAIL"
-        onClose={handleCancel}
+        onClose={handleClose}
         submitLabel="Guardar Cambios"
         onSubmit={() => undefined}
         minHeight="auto"
@@ -107,10 +147,11 @@ const ModalEditarEmail: React.FC<Props> = ({
       <ModalFormLayout
         isOpen={isOpen}
         title="EDITAR EMAIL"
-        onClose={handleCancel}
+        onClose={handleClose}
         submitLabel="Guardar Cambios"
         onSubmit={() => undefined}
         minHeight="auto"
+        deudorData={deudorData}
       >
         <div className="error-message">
           Error al cargar el email: {String(errorEmail)}
@@ -124,10 +165,11 @@ const ModalEditarEmail: React.FC<Props> = ({
       <ModalFormLayout
         isOpen={isOpen}
         title="EDITAR EMAIL"
-        onClose={handleCancel}
+        onClose={handleClose}
         submitLabel="Guardar Cambios"
         onSubmit={() => undefined}
         minHeight="auto"
+        deudorData={deudorData}
       >
         <div className="error-message">No se encontraron datos del email</div>
       </ModalFormLayout>
@@ -138,10 +180,11 @@ const ModalEditarEmail: React.FC<Props> = ({
     <ModalFormLayout
       isOpen={isOpen}
       title="EDITAR EMAIL"
-      onClose={handleCancel}
+      onClose={handleClose}
       submitLabel="Guardar Cambios"
-      onSubmit={handleSubmit}
+      onSubmit={handleSubmitEmail}
       minHeight="auto"
+      deudorData={deudorData}
     >
       <FormGrid columns={1}>
         <InputField
@@ -213,6 +256,15 @@ const ModalEditarEmail: React.FC<Props> = ({
         rows={3}
         error={errors.comentario}
       />
+
+      {submitError && (
+        <div className="error-summary">
+          <strong>No se pudo completar la operación:</strong>
+          <ul>
+            <li>{submitError}</li>
+          </ul>
+        </div>
+      )}
 
       {Object.keys(errors).length > 0 && (
         <div className="error-summary">

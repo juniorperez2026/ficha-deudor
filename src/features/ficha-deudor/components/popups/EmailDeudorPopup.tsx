@@ -9,6 +9,7 @@ import type { Column, Email, EmailFormData, EmailEditFormData, DeudorInfo } from
 import ModalRegistrarEmail from '../modals/popups/email/ModalRegistrarEmail';
 import ModalEditarEmail from '../modals/popups/email/ModalEditarEmail';
 import { createEmail, updateEmail } from '../../api/popups/emailsApi';
+import { getErrorMessage } from '../../utils/getErrorMessage';
 
 const ESTADOS_BADGE: Record<string, string> = {
   ACTIVO: 'badge-s',
@@ -36,20 +37,21 @@ const EmailDeudorPopup: React.FC = () => {
   const [searchParams] = useSearchParams();
   const nombre = decodeURIComponent(searchParams.get('nombre') || '');
   const documento = decodeURIComponent(searchParams.get('documento') || '');
+
   const deudorData: DeudorInfo | null = nombre
-  ? {
-      nombreRazonSocial: nombre,
-      dniRuc: documento,
-      gradoInstruccion: '',
-      edad: '',
-      contacto: '',
-      asesorPostVenta: '',
-      asesorComercial: '',
-      correoApv: '',
-      correoAc: '',
-    }
-  : null;
-    
+    ? {
+        nombreRazonSocial: nombre,
+        dniRuc: documento,
+        gradoInstruccion: '',
+        edad: '',
+        contacto: '',
+        asesorPostVenta: '',
+        asesorComercial: '',
+        correoApv: '',
+        correoAc: '',
+      }
+    : null;
+
   const {
     allData,
     paginatedData,
@@ -85,32 +87,44 @@ const EmailDeudorPopup: React.FC = () => {
     setShowRegistrar(true);
   };
 
-  const handleRegistrar = async (formData: EmailFormData) => {
+  const handleRegistrar = async (formData: EmailFormData): Promise<void> => {
+    if (!id_cliente || !id_deudor || !id_usuario) {
+      throw new Error(
+        'Faltan datos necesarios para registrar el email. Cierre esta ventana y vuelva a abrirla desde la ficha del deudor.'
+      );
+    }
+
     try {
-      if (!id_cliente || !id_deudor || !id_usuario) {
-        console.error('Faltan parámetros:', { id_cliente, id_deudor, id_usuario });
-        return;
-      }
       await createEmail(id_cliente, id_deudor, id_usuario, formData);
-      setShowRegistrar(false);
       refetch();
     } catch (err) {
-      console.error('Error al registrar email:', err);
+      throw new Error(getErrorMessage(err, 'No se pudo registrar el email. Intente nuevamente.'));
     }
   };
 
-  const handleGuardarEdicion = async (formData: EmailEditFormData) => {
+  const handleGuardarEdicion = async (formData: EmailEditFormData): Promise<void> => {
+    if (!id_cliente || !id_deudor || !id_usuario) {
+      throw new Error(
+        'Faltan datos necesarios para editar el email. Cierre esta ventana y vuelva a abrirla desde la ficha del deudor.'
+      );
+    }
+
+    if (!emailEditarId) {
+      throw new Error('No se encontró el email seleccionado para editar.');
+    }
+
     try {
-      if (!id_cliente || !id_deudor || !id_usuario || !emailEditarId) {
-        console.error('Faltan parámetros para editar');
-        return;
-      }
-      await updateEmail(id_cliente, id_deudor, id_usuario, emailEditarId, formData, formData.dFecRegistro);
-      setShowEditar(false);
-      setEmailEditarId(null);
+      await updateEmail(
+        id_cliente,
+        id_deudor,
+        id_usuario,
+        emailEditarId,
+        formData,
+        formData.dFecRegistro
+      );
       refetch();
     } catch (err) {
-      console.error('Error al guardar edición:', err);
+      throw new Error(getErrorMessage(err, 'No se pudo guardar la edición del email. Intente nuevamente.'));
     }
   };
 
@@ -225,7 +239,6 @@ const EmailDeudorPopup: React.FC = () => {
 
   return (
     <>
-      {/* ─── HEADER ESTILO APP ─── */}
       <header className="app-header">
         <div className="app-logo">
           <span className="logo-text">EMAIL</span>
@@ -246,9 +259,7 @@ const EmailDeudorPopup: React.FC = () => {
         </div>
       </header>
 
-      {/* ─── CONTENIDO ─── */}
       <main className="popup-main">
-        {/* Toolbar */}
         <div className="popup-toolbar">
           <div className="toolbar-info">
             <span className="toolbar-count">
@@ -267,7 +278,6 @@ const EmailDeudorPopup: React.FC = () => {
           />
         </div>
 
-        {/* Tabla */}
         <div className="popup-table-wrapper">
           <Table
             columns={columns}
@@ -282,7 +292,6 @@ const EmailDeudorPopup: React.FC = () => {
           />
         </div>
 
-        {/* Paginación */}
         {totalPages > 1 && (
           <div className="popup-pagination">
             <Paginacion
@@ -303,7 +312,6 @@ const EmailDeudorPopup: React.FC = () => {
         )}
       </main>
 
-      {/* ─── MODALES ─── */}
       <ModalRegistrarEmail
         isOpen={showRegistrar}
         onClose={() => setShowRegistrar(false)}

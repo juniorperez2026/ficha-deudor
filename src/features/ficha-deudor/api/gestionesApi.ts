@@ -1,5 +1,6 @@
 import { env } from "@app/config/env";
 import { apiClient } from '../../../shared/api/apiClient';
+
 import type {
   ApiResponse,
   ApiResponseSimple,
@@ -11,17 +12,6 @@ import type {
 
 const BASE_GESTION = '/v1/Gestion';
 const BASE_DOCUMENTOS = '/v1/documentos';
-
-const CAMPOS_ESTATICOS = [
-  'nId_DocxCobrar',
-  'mejorStatus',
-  'nId_Moneda',
-  'bEstado',
-  'nZona',
-  'bSelected',
-  'nId_Estrategia',
-  'nId_Cartera',
-];
 
 // ─── 1. CABECERAS ───
 export async function fetchColumnas(
@@ -61,7 +51,6 @@ export async function fetchBotones(
 }
 
 // ─── 3. TODOS LOS REGISTROS (sin paginación server-side) ───
-// NUEVO: Trae todo de una vez para filtros client-side
 export async function fetchAllGestiones(
   id_cliente: string,
   id_cartera: string,
@@ -72,7 +61,7 @@ export async function fetchAllGestiones(
     nId_Cartera: id_cartera,
     nId_Persdeudor: id_deudor,
     PageNumber: '1',
-    PageSize: '2000', // Cargamos todo de una vez
+    PageSize: '2000',
   });
 
   const result = await apiClient<ApiResponse<DocumentoApi[]>>(
@@ -83,8 +72,6 @@ export async function fetchAllGestiones(
     throw new Error(result.message || 'Error cargando documentos');
   }
 
-  // Si el backend devuelve array plano, usalo directo
-  // Si devuelve ApiResponse con response[], mapeamos
   return Array.isArray(result.response) ? result.response : [];
 }
 
@@ -95,7 +82,7 @@ export async function fetchGestiones(
   id_deudor: string,
   pageNumber: number,
   pageSize: number
-): Promise<ApiResponse<DocumentoApi>> {
+): Promise<ApiResponse<DocumentoApi[]>> {
   const params = new URLSearchParams({
     nId_Cliente: id_cliente,
     nId_Cartera: id_cartera,
@@ -104,7 +91,7 @@ export async function fetchGestiones(
     PageSize: String(pageSize),
   });
 
-  return apiClient<ApiResponse<DocumentoApi>>(
+  return apiClient<ApiResponse<DocumentoApi[]>>(
     `${BASE_GESTION}/GetGestionDocumentos?${params.toString()}`
   );
 }
@@ -134,39 +121,21 @@ function inferTypeFromCabecera(cab: CabeceraPantallaApi): ColumnApi['type'] {
   if (titulo.includes('atraso')) return 'atraso';
   if (titulo.includes('vencimiento') || titulo.includes('fecha')) return 'date';
   if (titulo === 'estado' || titulo.includes('estado_')) return 'estado';
+
   return 'text';
-}
-
-export function mapResponseToDocumento(raw: Record<string, unknown>): DocumentoApi {
-  const doc: DocumentoApi = {
-    nId_DocxCobrar: Number(raw.nId_DocxCobrar),
-    mejorStatus: Number(raw.mejorStatus),
-    nId_Moneda: Number(raw.nId_Moneda),
-    bEstado: Number(raw.bEstado),
-    nZona: String(raw.nZona),
-    bSelected: Boolean(raw.bSelected),
-    nId_Estrategia: Number(raw.nId_Estrategia),
-    nId_Cartera: Number(raw.nId_Cartera),
-  };
-
-  const dynamicKeys = Object.keys(raw).filter(
-    (key) => !CAMPOS_ESTATICOS.includes(key)
-  );
-
-  for (const key of dynamicKeys) {
-    doc[key] = raw[key];
-  }
-
-  return doc;
 }
 
 // ═══════════════════════════════════════════
 // MOCKS
 // ═══════════════════════════════════════════
-function mockBotones(id_cliente: string, id_cartera: string, id_deudor: string, id_usuario:string): BotonApi[] {
+function mockBotones(
+  id_cliente: string,
+  id_cartera: string,
+  id_deudor: string,
+  id_usuario: string
+): BotonApi[] {
   if (id_cliente === '95') {
     return [
-      //{ id: 'datos_cliente', label: 'DATOS_CLIENTE', action: 'modal_datos_cliente' },
       {
         id: 'pagos',
         label: 'PAGOS',
@@ -193,8 +162,17 @@ function mockBotones(id_cliente: string, id_cartera: string, id_deudor: string, 
       },
     ];
   }
+
   return [
-    { id: 'estado_cuenta', label: 'ESTADO_CUENTA', action: 'modal_estado_cuenta' },
-    { id: 'pagos', label: 'PAGOS', action: 'modal_pagos' },
+    {
+      id: 'estado_cuenta',
+      label: 'ESTADO_CUENTA',
+      action: 'modal_estado_cuenta',
+    },
+    {
+      id: 'pagos',
+      label: 'PAGOS',
+      action: 'modal_pagos',
+    },
   ];
 }

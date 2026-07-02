@@ -1,5 +1,6 @@
 import React, {
   useCallback,
+  useEffect,
   useMemo,
   useState,
 } from 'react';
@@ -15,7 +16,15 @@ import type {
   LoginResponse,
 } from '../types';
 
-const AUTH_STORAGE_KEY = 'ficha_deudor_auth_state';
+import {
+  AUTH_LOGOUT_EVENT_KEY,
+  AUTH_STORAGE_KEY,
+  clearStoredAuthState,
+  closePopupOrRedirectToLogin,
+  hasStoredAuthState,
+  isPublicAuthPath,
+  logoutSession,
+} from '../utils/logoutSession';
 
 const initialState: AuthState = {
   isAuthenticated: false,
@@ -74,11 +83,6 @@ function saveStoredAuthState(state: AuthState) {
   }
 }
 
-function clearStoredAuthState() {
-  localStorage.removeItem('auth_token');
-  localStorage.removeItem(AUTH_STORAGE_KEY);
-}
-
 interface AuthProviderProps {
   children: React.ReactNode;
 }
@@ -93,6 +97,38 @@ const buildLoginErrorResponse = (message: string): LoginResponse => {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [state, setState] = useState<AuthState>(() => loadStoredAuthState());
+
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== AUTH_LOGOUT_EVENT_KEY || !event.newValue) {
+        return;
+      }
+
+      clearStoredAuthState();
+      setState(initialState);
+      closePopupOrRedirectToLogin();
+    };
+
+    window.addEventListener('storage', handleStorage);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
+  useEffect(() => {
+    const pathname = window.location.pathname;
+
+    if (isPublicAuthPath(pathname)) {
+      return;
+    }
+
+    if (state.isLoading || state.isAuthenticated || hasStoredAuthState()) {
+      return;
+    }
+
+    closePopupOrRedirectToLogin();
+  }, [state.isAuthenticated, state.isLoading]);
 
   const login = useCallback(
     async (payload: LoginPayload): Promise<LoginResponse> => {
@@ -160,7 +196,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   );
 
   const logout = useCallback(() => {
-    clearStoredAuthState();
+    logoutSession();
     setState(initialState);
   }, []);
 
