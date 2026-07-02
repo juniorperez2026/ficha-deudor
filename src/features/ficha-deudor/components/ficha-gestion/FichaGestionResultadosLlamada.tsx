@@ -1,11 +1,7 @@
 import React from 'react';
-import { SelectField, TextAreaField, CheckboxField } from '@shared/components/ui';
+import { SelectField, TextAreaField, CheckboxField } from '../../../../shared/components/ui';
+import type { SelectOption } from '../../../../shared/types';
 import type { GestionFormClaro } from '../../hooks/useFichaGestionForm';
-
-type Option = {
-  id: string;
-  label: string;
-};
 
 interface Props {
   form: GestionFormClaro;
@@ -15,11 +11,11 @@ interface Props {
   ) => void;
   mostrarCamposClaro: boolean;
 
-  estadoGestionClaroOptions: Option[];
+  estadoGestionClaroOptions: SelectOption[];
   isLoadingEstadoGestionClaro: boolean;
   errorEstadoGestionClaro?: string | null;
 
-  motivoNoPagoOptions: Option[];
+  motivoNoPagoOptions: SelectOption[];
   isLoadingMotivoNoPago: boolean;
   errorMotivoNoPago?: string | null;
 

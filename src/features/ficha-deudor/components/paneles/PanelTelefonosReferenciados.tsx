@@ -1,14 +1,16 @@
-import React, { useMemo, useState } from 'react';
-import Table from '../../../../shared/components/table/Table';
+import React, { useCallback, useState } from 'react';
 import { ActionButton } from '../../../../shared/components/ui';
-import Paginacion from '../../../../shared/components/ui/Paginacion';
-import { WrapCell } from '../../../../shared/components/ui/WrapCell';
-import { Badge } from '../../../../shared/components/ui/Badge';
 import { PanelLayout } from './PanelLayout';
 import { useTelefonosReferenciados } from '../../hooks/useTelefonosReferenciados';
-import type { Column, TelefonoReferenciado, TelefonoFormData } from '../../../../shared/types';
+import { usePanelTelefonosReferenciadosColumns } from '../../hooks/usePanelTelefonosReferenciadosColumns';
+import type {
+  TelefonoReferenciado,
+  TelefonoFormData,
+} from '../../../../shared/types';
 import ModalRegistrarTelefono from '../modals/accionesRapidas/ModalRegistrarTelefono';
 import ModalEditarTelefono from '../modals/accionesRapidas/ModalEditarTelefono';
+import PanelTablaResumen from './shared/PanelTablaResumen';
+import PanelResumenEstado from './shared/PanelResumenEstado';
 
 interface Props {
   isActive: boolean;
@@ -17,7 +19,12 @@ interface Props {
   id_usuario: string;
 }
 
-const PanelTelefonosReferenciados: React.FC<Props> = ({ isActive, id_cliente, id_deudor, id_usuario}) => {
+const PanelTelefonosReferenciados: React.FC<Props> = ({
+  isActive,
+  id_cliente,
+  id_deudor,
+  id_usuario,
+}) => {
   const {
     allData,
     paginatedData,
@@ -42,137 +49,84 @@ const PanelTelefonosReferenciados: React.FC<Props> = ({ isActive, id_cliente, id
   const [showEditar, setShowEditar] = useState(false);
   const [telefonoEditarId, setTelefonoEditarId] = useState<number | null>(null);
 
-  const handleEdit = (row: TelefonoReferenciado) => {
+  const handleEdit = useCallback((row: TelefonoReferenciado) => {
     setTelefonoEditarId(row.id);
     setShowEditar(true);
-  };
+  }, []);
 
-  const handleGuardarEdicion = async (formData: TelefonoFormData) => {
-    try {
-      await update(formData.id, formData);
-      setShowEditar(false);
-      setTelefonoEditarId(null);
-    } catch (err) {
-      console.error('Error al guardar edición:', err);
-    }
-  };
+  const handleCloseEditar = useCallback(() => {
+    setShowEditar(false);
+    setTelefonoEditarId(null);
+  }, []);
 
-  const handleRegistrar = async (formData: TelefonoFormData) => {
-    try {
-      await create(formData);
-      setShowRegistrar(false);
-    } catch (err) {
-      console.error('❌ PANEL: Error en handleRegistrar:', err);
-    }
-  };
-
-  // ─── Columnas estáticas ───
-  const columns: Column[] = useMemo(
-    () => [
-      { key: 'prioridad', label: 'Prioridad' },
-      { key: 'numero', label: 'Número' },
-      {
-        key: 'horario',
-        label: 'Horario',
-        render: (row: TelefonoReferenciado) => <WrapCell>{row.horario}</WrapCell>,
-      },
-      {
-        key: 'refUbicacion',
-        label: 'Ref. Ubicación',
-        render: (row: TelefonoReferenciado) => <WrapCell>{row.refUbicacion}</WrapCell>,
-      },
-      {
-        key: 'estado',
-        label: 'Estado',
-        render: (row: TelefonoReferenciado) => (
-          <Badge
-            variant={row.estado === 'OPERATIVO' ? 'success' : 'neutral'}
-            style={{ padding: '2px 7px', borderRadius: '10px', fontSize: '9px' }}
-          >
-            {row.estado || '—'}
-          </Badge>
-        ),
-      },
-      { key: 'fechaEstado', label: 'Fecha Estado' },
-      { key: 'fechaBase', label: 'Fecha Base' },
-      {
-        key: 'contactados',
-        label: 'Contactados',
-        render: (row: TelefonoReferenciado) => (
-          <WrapCell weight={500}>{`${row.contactados}`}</WrapCell>
-        ),
-      },
-      { key: 'noContactados', label: 'No Contactados' },
-      { key: 'ivr', label: 'IVR' },
-      {
-        key: 'fuente',
-        label: 'Fuente',
-        render: (row: TelefonoReferenciado) => <WrapCell>{row.fuente}</WrapCell>,
-      },
-      { key: 'ordenSearch', label: 'Orden Search' },
-      {
-        key: 'acciones',
-        label: 'Editar',
-        width: '55px',
-        filterable: false,
-        render: (row: TelefonoReferenciado) => (
-          <ActionButton label="" variant="primary" size="sm" icon="✎" onClick={() => handleEdit(row)} />
-        ),
-      },
-    ],
-    []
+  const handleGuardarEdicion = useCallback(
+    async (formData: TelefonoFormData) => {
+      try {
+        await update(formData.id, formData);
+        handleCloseEditar();
+      } catch {
+        alert('No se pudo guardar la edición del teléfono.');
+      }
+    },
+    [update, handleCloseEditar]
   );
 
-  const indiceInicio = (pageNumber - 1) * pageSize;
-  const indiceFin = Math.min(pageNumber * pageSize, totalRecords);
+  const handleRegistrar = useCallback(
+    async (formData: TelefonoFormData) => {
+      try {
+        await create(formData);
+        setShowRegistrar(false);
+      } catch {
+        alert('No se pudo registrar el teléfono.');
+      }
+    },
+    [create]
+  );
 
-  // ─── ESTADOS DE CARGA/ERROR ───
+  const { columns } = usePanelTelefonosReferenciadosColumns({
+    onEdit: handleEdit,
+  });
+
   if (!isActive) return null;
 
-  if (isLoading) {
+  if (isLoading || error) {
     return (
-      <PanelLayout title="TELÉFONOS REFERENCIADOS" isActive={isActive}>
-        <div style={{ padding: '2rem', textAlign: 'center' }}>
-          <span>Cargando teléfonos...</span>
-        </div>
-      </PanelLayout>
-    );
-  }
-
-  if (error) {
-    return (
-      <PanelLayout title="TELÉFONOS REFERENCIADOS" isActive={isActive}>
-        <div style={{ padding: '2rem', color: '#c00' }}>
-          <p style={{ marginBottom: 12 }}>Error al cargar teléfonos:</p>
-          <p style={{ fontSize: '0.9em', color: '#666', marginBottom: 16 }}>{error}</p>
-          <button onClick={refetch} style={{ padding: '8px 16px', cursor: 'pointer' }}>
-            Reintentar
-          </button>
-        </div>
-      </PanelLayout>
+      <PanelResumenEstado
+        title="TELÉFONOS REFERENCIADOS"
+        isActive={isActive}
+        error={error}
+        loadingMessage="Cargando teléfonos..."
+        errorTitle="Error al cargar teléfonos:"
+        onRetry={refetch}
+      />
     );
   }
 
   return (
     <>
       <PanelLayout title="TELÉFONOS REFERENCIADOS" isActive={isActive}>
-        <div style={{ padding: '16px 0' }}>
-          {/* Header con contador y botón */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '12px',
-            }}
-          >
-            <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>
-              Mostrando {indiceInicio + 1}-{indiceFin} de {totalRecords} teléfono(s)
-            </span>
+        <PanelTablaResumen
+          columns={columns}
+          data={paginatedData}
+          allData={allData}
+          pageNumber={pageNumber}
+          pageSize={pageSize}
+          totalRecords={totalRecords}
+          totalPages={totalPages}
+          textFilters={textFilters}
+          selectedFilters={selectedFilters}
+          emptyMessage="No se encontraron teléfonos referenciados"
+          itemLabel="teléfono(s)"
+          setPageNumber={setPageNumber}
+          setPageSize={setPageSize}
+          onTextFilterChange={onTextFilterChange}
+          onSelectedFilterChange={onSelectedFilterChange}
+          headerRight={
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <span style={{ fontSize: '12px', color: '#6b7a99' }}>
                 Página {pageNumber} de {totalPages}
               </span>
+
               <ActionButton
                 label="Agregar Teléfono"
                 variant="primary"
@@ -181,37 +135,8 @@ const PanelTelefonosReferenciados: React.FC<Props> = ({ isActive, id_cliente, id
                 onClick={() => setShowRegistrar(true)}
               />
             </div>
-          </div>
-
-          <Table
-            columns={columns}
-            data={paginatedData}
-            emptyMessage="No se encontraron teléfonos referenciados"
-            enableColumnFilters={true}
-            allData={allData} // <-- Todos los filtrados para opciones de filtro
-            textFilters={textFilters}
-            selectedFilters={selectedFilters}
-            onTextFilterChange={onTextFilterChange}
-            onSelectedFilterChange={onSelectedFilterChange}
-          />
-
-          {totalPages > 0 && (
-            <Paginacion
-              paginaActual={pageNumber}
-              totalPaginas={totalPages}
-              totalRegistros={totalRecords}
-              indiceInicio={indiceInicio}
-              indiceFin={indiceFin}
-              onPaginaAnterior={() => setPageNumber(Math.max(1, pageNumber - 1))}
-              onPaginaSiguiente={() => setPageNumber(Math.min(totalPages, pageNumber + 1))}
-              onIrAPagina={setPageNumber}
-              showPageSizeSelector={true}
-              pageSize={pageSize}
-              pageSizeOptions={[5, 10, 30, 50]}
-              onPageSizeChange={setPageSize}
-            />
-          )}
-        </div>
+          }
+        />
       </PanelLayout>
 
       <ModalRegistrarTelefono
@@ -219,12 +144,10 @@ const PanelTelefonosReferenciados: React.FC<Props> = ({ isActive, id_cliente, id
         onClose={() => setShowRegistrar(false)}
         onRegistrar={handleRegistrar}
       />
+
       <ModalEditarTelefono
         isOpen={showEditar}
-        onClose={() => {
-          setShowEditar(false);
-          setTelefonoEditarId(null);
-        }}
+        onClose={handleCloseEditar}
         telefonoId={telefonoEditarId}
         onGuardar={handleGuardarEdicion}
       />

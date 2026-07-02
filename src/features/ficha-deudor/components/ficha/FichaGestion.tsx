@@ -4,9 +4,10 @@ import {
   type GestionFormClaro,
 } from '../../hooks/useFichaGestionForm';
 import { useFichaGestionCatalogos } from '../../hooks/useFichaGestionCatalogos';
+import { useFichaGestionActions } from '../../hooks/useFichaGestionActions';
 import FichaGestionDatosPrincipales from '../ficha-gestion/FichaGestionDatosPrincipales';
 import FichaGestionAccionesTomar from '../ficha-gestion/FichaGestionAccionesTomar';
-import FichaGestionResultadosLlamada from '../../components/ficha-gestion/FichaGestionResultadosLlamada';
+import FichaGestionResultadosLlamada from '../ficha-gestion/FichaGestionResultadosLlamada';
 
 interface Props {
   idCliente: string;
@@ -16,6 +17,7 @@ interface Props {
 }
 
 const ID_CLIENTE_CLARO = '95';
+const USUARIO_ACTUAL = 'CARLOS R. (Gestor)';
 
 const FichaGestion: React.FC<Props> = ({
   idCliente,
@@ -67,39 +69,18 @@ const FichaGestion: React.FC<Props> = ({
     form.np1
   );
 
-  const usuarioActual = 'CARLOS R. (Gestor)';
   const mostrarCamposClaro = String(idCliente) === ID_CLIENTE_CLARO;
 
-  const handleAgendar = () => {
-    if (form.fechaNuevaGestion && form.horaNuevaGestion) {
-      const mensaje = `Gestión agendada para: ${form.fechaNuevaGestion} a las ${form.horaNuevaGestion} por ${usuarioActual}`;
-
-      alert(mensaje);
-      setField('fechaGestion', form.fechaNuevaGestion);
-      setField('horaGestion', form.horaNuevaGestion);
-    } else {
-      alert('Por favor seleccione fecha y hora para agendar');
-    }
-  };
-
-  const handleOpenWhatsApp = () => {
-    const telefono = form.telefono.replace(/\D/g, '');
-
-    if (!telefono) {
-      alert('Por favor ingrese un número de teléfono');
-      return;
-    }
-
-    const mensaje = encodeURIComponent(
-      'Hola, me comunico de [Empresa] respecto a su gestión.'
-    );
-
-    window.open(`https://wa.me/${telefono}?text=${mensaje}`, '_blank');
-  };
-
-  const handleGuardar = () => {
-    onSubmit?.(form);
-  };
+  const {
+    handleAgendar,
+    handleOpenWhatsApp,
+    handleGuardar,
+  } = useFichaGestionActions({
+    form,
+    setField,
+    usuarioActual: USUARIO_ACTUAL,
+    onSubmit,
+  });
 
   return (
     <div className="ficha-card">
@@ -133,7 +114,7 @@ const FichaGestion: React.FC<Props> = ({
       <FichaGestionAccionesTomar
         form={form}
         setField={setField}
-        usuarioActual={usuarioActual}
+        usuarioActual={USUARIO_ACTUAL}
         handleAgendar={handleAgendar}
       />
 

@@ -1,11 +1,7 @@
 import React from 'react';
 import { SelectField } from '../../../../shared/components/ui';
+import type { SelectOption } from '../../../../shared/types';
 import type { GestionFormClaro } from '../../hooks/useFichaGestionForm';
-
-type Option = {
-  id: string;
-  label: string;
-};
 
 interface Props {
   form: GestionFormClaro;
@@ -17,23 +13,23 @@ interface Props {
   handleNP1Change: (value: string) => void;
   handleOpenWhatsApp: () => void;
 
-  estadosOptions: Option[];
+  estadosOptions: SelectOption[];
   isLoadingEstados: boolean;
   errorEstados?: string | null;
 
-  tiposOptions: Option[];
+  tiposOptions: SelectOption[];
   isLoadingTipos: boolean;
   errorTipos?: string | null;
 
-  np0Options: Option[];
+  np0Options: SelectOption[];
   isLoadingNP0: boolean;
   errorNP0?: string | null;
 
-  np1Options: Option[];
+  np1Options: SelectOption[];
   isLoadingNP1: boolean;
   errorNP1?: string | null;
 
-  np2Options: Option[];
+  np2Options: SelectOption[];
   isLoadingNP2: boolean;
   errorNP2?: string | null;
 }
