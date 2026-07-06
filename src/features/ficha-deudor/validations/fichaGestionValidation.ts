@@ -94,6 +94,14 @@ export const validateFichaGestion = ({
     }
   }
 
+  if (!isEmptyValue(form.fechaNuevaGestion) && isEmptyValue(form.horaNuevaGestion)) {
+    errors.horaNuevaGestion = 'Ingrese Hora de Nueva Gestión';
+  }
+
+  if (!isEmptyValue(form.fechaGestion) && isEmptyValue(form.horaGestion)) {
+    errors.horaGestion = 'Ingrese Hora de Gestión';
+  }
+
   const tipoGestion = toNumber(form.tipoGestion);
   const telefono = form.telefono.trim();
 
