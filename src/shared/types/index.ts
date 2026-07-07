@@ -45,3 +45,4 @@ export * from '../../features/ficha-deudor/types/popups/pago.types';
 export * from '../../features/ficha-deudor/types/popups/infDeudor.types';
 export * from '../../features/ficha-deudor/types/fichaGestion.types';
 export * from '../../features/dashboard/types/dashboardDeudor.types';
+export * from '../../features/ficha-deudor/types/popups/gestor.types';

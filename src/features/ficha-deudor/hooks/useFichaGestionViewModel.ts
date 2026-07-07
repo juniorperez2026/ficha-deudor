@@ -152,6 +152,7 @@ export const useFichaGestionViewModel = ({
 
   return {
     datosPrincipalesProps: {
+      idCliente,
       form,
       setField,
       handleNP0Change,

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 
 import { SelectField } from '../../../../shared/components/ui';
 import type { SelectOption } from '../../../../shared/types';
@@ -8,6 +8,7 @@ import type {
 } from '../../types/fichaGestion.types';
 
 interface Props {
+  idCliente: string;
   form: GestionFormClaro;
   setField: SetGestionField;
   handleNP0Change: (value: string) => void;
@@ -30,7 +31,24 @@ interface Props {
   errorNP2?: string | null;
 }
 
+type GestorSelectedMessage = {
+  type: 'GESTOR_SELECTED';
+  payload?: {
+    id?: string | number;
+    nombre?: string;
+  };
+};
+
+const isGestorSelectedMessage = (
+  data: unknown
+): data is GestorSelectedMessage => {
+  if (typeof data !== 'object' || data === null) return false;
+
+  return (data as { type?: unknown }).type === 'GESTOR_SELECTED';
+};
+
 const FichaGestionDatosPrincipales: React.FC<Props> = ({
+  idCliente,
   form,
   setField,
   handleNP0Change,
@@ -87,6 +105,40 @@ const FichaGestionDatosPrincipales: React.FC<Props> = ({
   const handleTipoGestionChange = (value: string) => {
     setField('tipoGestion', value);
   };
+
+  const handleOpenListaGestores = useCallback(() => {
+    if (!idCliente) return;
+
+    const popupUrl = `${window.location.origin}/popup/lista-gestores/${encodeURIComponent(
+      idCliente
+    )}`;
+
+    window.open(
+      popupUrl,
+      'lista-gestores',
+      'width=1100,height=700,scrollbars=yes,resizable=yes'
+    );
+  }, [idCliente]);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent<unknown>) => {
+      if (event.origin !== window.location.origin) return;
+      if (!isGestorSelectedMessage(event.data)) return;
+
+      const { id, nombre } = event.data.payload ?? {};
+
+      if (id === undefined || nombre === undefined) return;
+
+      setField('gestorId', String(id));
+      setField('gestorNombre', nombre);
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [setField]);
 
   return (
     <div className="ficha-block ficha-block--with-side-title ficha-block--compact-gestion">
@@ -202,7 +254,12 @@ const FichaGestionDatosPrincipales: React.FC<Props> = ({
           <div className="form-group gestor-field">
             <label className="form-label">Gestor</label>
             <div className="gestor-row gestor-row--compact gestor-row--inline">
-              <button className="btn btn-info btn-xs" type="button">
+              <button
+                className="btn btn-info btn-xs"
+                type="button"
+                onClick={handleOpenListaGestores}
+                disabled={!idCliente}
+              >
                 Buscar Gestor
               </button>
 

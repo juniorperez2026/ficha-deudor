@@ -11,7 +11,7 @@ import EmailDeudorPopup from '../../features/ficha-deudor/components/popups/Emai
 import AgendaDeudorPopup from '../../features/ficha-deudor/components/popups/AgendaDeudorPopup';
 import PagoDeudorPopup from '../../features/ficha-deudor/components/popups/PagoDeudorPopup';
 import InfDeudorPopup from '../../features/ficha-deudor/components/popups/InfDeudorPopup';
-
+import ListaGestoresPopup from '../../features/ficha-deudor/components/popups/ListaGestoresPopup';
 import AppLayout from '../../shared/components/layout/AppLayout';
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
@@ -45,10 +45,29 @@ export function AppRouter() {
               <Route path="/ficha-deudor" element={<FichaDeudor />} />
             </Route>
 
-            <Route path="/popup/email-deudor" element={<EmailDeudorPopup />} />
-            <Route path="/popup/agenda-deudor" element={<AgendaDeudorPopup />} />
-            <Route path="/popup/pago-deudor" element={<PagoDeudorPopup />} />
-            <Route path="/popup/inf-deudor" element={<InfDeudorPopup />} />
+            <Route
+              path="/popup/email-deudor/:id_cliente/:id_deudor/:id_usuario"
+              element={<EmailDeudorPopup />}
+            />
+
+            <Route
+              path="/popup/agenda-deudor/:id_cliente/:id_cartera/:id_deudor/:id_usuario"
+              element={<AgendaDeudorPopup />}
+            />
+
+            <Route
+              path="/popup/pago-deudor/:id_cliente/:id_cartera/:id_deudor"
+              element={<PagoDeudorPopup />}
+            />
+
+            <Route
+              path="/popup/inf-deudor/:id_cliente/:id_cartera/:id_deudor/:id_usuario"
+              element={<InfDeudorPopup />}
+            />
+            <Route
+              path="/popup/lista-gestores/:id_cliente"
+              element={<ListaGestoresPopup />}
+            />
           </Route>
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
